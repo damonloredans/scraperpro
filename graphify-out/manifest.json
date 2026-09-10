@@ -1,0 +1,134 @@
+{
+  "run.py": {
+    "mtime": 1789032414.6593003,
+    "seen": 1789043173.3651655,
+    "ast_hash": "878a4ff9d1b9ea83888c6a48dbf71449",
+    "semantic_hash": "878a4ff9d1b9ea83888c6a48dbf71449"
+  },
+  "scraperpro/__init__.py": {
+    "mtime": 1789017228.687802,
+    "seen": 1789043173.365169,
+    "ast_hash": "01075b35389f4f245f333057ed288ea4",
+    "semantic_hash": "01075b35389f4f245f333057ed288ea4"
+  },
+  "scraperpro/common.py": {
+    "mtime": 1789028573.6292727,
+    "seen": 1789043173.3651707,
+    "ast_hash": "8e64c4302a2f8410a95fc3885980dfee",
+    "semantic_hash": "8e64c4302a2f8410a95fc3885980dfee"
+  },
+  "scraperpro/fetch.py": {
+    "mtime": 1789030372.6178024,
+    "seen": 1789043173.3651714,
+    "ast_hash": "6b887e6be7ca4b5377421f54e022ada2",
+    "semantic_hash": "6b887e6be7ca4b5377421f54e022ada2"
+  },
+  "scraperpro/r2.py": {
+    "mtime": 1789026481.105343,
+    "seen": 1789043173.3651724,
+    "ast_hash": "18494dd3e1b2bfcde44a9a733abf0ac0",
+    "semantic_hash": "18494dd3e1b2bfcde44a9a733abf0ac0"
+  },
+  "scraperpro/shopify_columns.py": {
+    "mtime": 1789028061.1228926,
+    "seen": 1789043173.3651733,
+    "ast_hash": "f8285314020186ece97ade37ec37ccde",
+    "semantic_hash": "f8285314020186ece97ade37ec37ccde"
+  },
+  "scraperpro/shopify_native.py": {
+    "mtime": 1789022171.8237374,
+    "seen": 1789043173.365174,
+    "ast_hash": "287742e7b953ce303307a2866cd6a4a7",
+    "semantic_hash": "287742e7b953ce303307a2866cd6a4a7"
+  },
+  "scraperpro/sites/__init__.py": {
+    "mtime": 1789017303.5523782,
+    "seen": 1789043173.3651748,
+    "ast_hash": "e56557d32726bfd88e5b1c81616fb00a",
+    "semantic_hash": "e56557d32726bfd88e5b1c81616fb00a"
+  },
+  "scraperpro/sites/crispi.py": {
+    "mtime": 1789017451.7501605,
+    "seen": 1789043173.3651752,
+    "ast_hash": "c499f23eafa288c3dc43a0df24493419",
+    "semantic_hash": "c499f23eafa288c3dc43a0df24493419"
+  },
+  "scraperpro/sites/oakleysi.py": {
+    "mtime": 1789032391.9040034,
+    "seen": 1789043173.365176,
+    "ast_hash": "428ebc510b10c68323f32a376a8fe602",
+    "semantic_hash": "428ebc510b10c68323f32a376a8fe602"
+  },
+  "scraperpro/sites/princetontec.py": {
+    "mtime": 1789017308.610959,
+    "seen": 1789043173.3651767,
+    "ast_hash": "71de16a4a9e759aba7122dde047c0232",
+    "semantic_hash": "71de16a4a9e759aba7122dde047c0232"
+  },
+  "scraperpro/woo.py": {
+    "mtime": 1789028578.683497,
+    "seen": 1789043173.3651776,
+    "ast_hash": "60c7f4eedef26e2341973d4cc3a9e6eb",
+    "semantic_hash": "60c7f4eedef26e2341973d4cc3a9e6eb"
+  },
+  "tests/test_oakley_parser.py": {
+    "mtime": 1789022656.266621,
+    "seen": 1789043173.365178,
+    "ast_hash": "a027d7a49eb1573face920097fc59e9a",
+    "semantic_hash": "a027d7a49eb1573face920097fc59e9a"
+  },
+  "tools/rehost_images.py": {
+    "mtime": 1789031288.330917,
+    "seen": 1789043173.3651788,
+    "ast_hash": "04aae05280104788e43b1d2090645546",
+    "semantic_hash": "04aae05280104788e43b1d2090645546"
+  },
+  "tools/validate.py": {
+    "mtime": 1789031818.1771846,
+    "seen": 1789043173.3651793,
+    "ast_hash": "a4484b2b5ec86c0f6eb2d526864a73f9",
+    "semantic_hash": "a4484b2b5ec86c0f6eb2d526864a73f9"
+  },
+  "README.md": {
+    "mtime": 1789031825.9845645,
+    "seen": 1789043173.3651803,
+    "ast_hash": "816d0354729d5ebd2c71f800c8b9e1ab",
+    "semantic_hash": "816d0354729d5ebd2c71f800c8b9e1ab"
+  },
+  "docs/format-mapping.md": {
+    "mtime": 1789021709.564281,
+    "seen": 1789043173.365181,
+    "ast_hash": "52b38ad8ddc11eefe19345575f4a95ab",
+    "semantic_hash": "52b38ad8ddc11eefe19345575f4a95ab"
+  },
+  "docs/quote-for-howard.md": {
+    "mtime": 1789032493.0210223,
+    "seen": 1789043173.3651817,
+    "ast_hash": "6f1c42443b2a935ec81e213f59fb51df",
+    "semantic_hash": "6f1c42443b2a935ec81e213f59fb51df"
+  },
+  "docs/quote.md": {
+    "mtime": 1789032132.488907,
+    "seen": 1789043173.3651822,
+    "ast_hash": "5326a9184c8b954a47536f554293d09d",
+    "semantic_hash": "5326a9184c8b954a47536f554293d09d"
+  },
+  "requirements.txt": {
+    "mtime": 1789025793.9147549,
+    "seen": 1789043173.3651826,
+    "ast_hash": "8f80010cdf0ce5d2a3446ecbb98d5116",
+    "semantic_hash": "8f80010cdf0ce5d2a3446ecbb98d5116"
+  },
+  "tests/fixtures/oakleysi_category_sunglasses.html": {
+    "mtime": 1789021464.5727003,
+    "seen": 1789043173.3651836,
+    "ast_hash": "45a47dd1ce76428497974ac29fd924b3",
+    "semantic_hash": "45a47dd1ce76428497974ac29fd924b3"
+  },
+  "tests/fixtures/oakleysi_pdp_holbrook.html": {
+    "mtime": 1789021464.557689,
+    "seen": 1789043173.3651843,
+    "ast_hash": "699ac862c255ec43d0589dd6a56f8780",
+    "semantic_hash": "699ac862c255ec43d0589dd6a56f8780"
+  }
+}
