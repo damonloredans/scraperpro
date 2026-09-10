@@ -175,6 +175,18 @@ the style-code set against what was scraped, and re-scrapes any adds; removals
 are dropped. Keeping the sheet current after handover = a scheduled weekly delta
 run (separate quote).
 
+## QA a delivered sheet
+
+```bash
+python tools/validate.py output/oakleysi_shopify.csv            # structural + smell checks
+python tools/validate.py output/oakleysi_shopify.csv --images 40 # + HEAD-check 40 random image URLs
+python tools/validate.py output/oakleysi_shopify.csv --sitemap   # + flag sitemap products not in the sheet
+```
+
+Reports **BLOCKERS** (things Shopify's importer silently rejects — no Title,
+duplicate variant options, Option2-without-Option1) and **SMELLS** (no images,
+bad prices, promo-collection Type values). Exits non-zero on any blocker.
+
 ## Field mapping
 
 Full column-by-column spec: **`docs/format-mapping.md`**.

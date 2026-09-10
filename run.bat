@@ -62,15 +62,35 @@ for %%F in (!FMTS!) do (
     echo   ^>^> %PY% tools\rehost_images.py !CSV! --prefix oakley
     %PY% tools\rehost_images.py !CSV! --prefix oakley
 )
-goto :done
+goto :validate
 
 :bad
 echo   invalid choice
+goto :end
+
+:validate
+echo.
+set /p "QA=  Run the validator on the output? [Y/n]: "
+if /i "!QA!"=="n" goto :done
+for %%B in (%BRANDS%) do (
+    for %%F in (!FMTS!) do (
+        if /i "%%F"=="matrixify" ( set "SFX=shopify" ) else ( set "SFX=shopify-native" )
+        set "CSV=output\%%B_!SFX!.csv"
+        if exist "output\%%B_!SFX!.r2.csv" set "CSV=output\%%B_!SFX!.r2.csv"
+        if exist "!CSV!" (
+            echo.
+            echo   ^>^> %PY% tools\validate.py !CSV!
+            %PY% tools\validate.py !CSV!
+        )
+    )
+)
 
 :done
 echo.
 echo   ============================================
 echo     SCRAPING COMPLETE  -  files in output\
 echo   ============================================
+
+:end
 echo.
 pause

@@ -1,338 +1,226 @@
-# Quote — Brand Scrape to Shopify Submission Format
+# Quote — Brand Catalogue Scrape to Shopify Import Sheets
 
 **Prepared for:** Howard (Broad Arrow Tactical — broadarrowtactical.com.au)
-**Re:** Product data capture for Oakley SI, Princeton Tec, Crispi (AU) -> Shopify import sheet
-**Date:** 2026-09-10
-**Status:** Estimate. Firms into a fixed quote after the ~1-day discovery + sample sign-off.
+**Re:** Oakley SI, Princeton Tec, Crispi (AU) -> Shopify import files
+**Status:** internal working estimate (rev 2 — reflects work completed + de-risked).
+Client-facing version: `docs/quote-for-howard.md`.
 
 ---
 
 ## 1. Scope
 
 Capture the public catalogue of three brands, deliver each as a Shopify product
-import file matching `vertx_product_submission_sample.csv` (a **Matrixify**-style
-sheet — see `docs/format-mapping.md`):
+import file matching `vertx_product_submission_sample.csv` (a **Matrixify** sheet
+— see `docs/format-mapping.md`), plus a **native Shopify CSV** for the built-in
+importer:
 
-| # | Brand | Site | Platform | What we pull |
-|---|-------|------|----------|--------------|
-| 1 | Oakley SI | oakleysi.com/en-us | SAP Commerce Cloud | Eyewear, apparel, accessories, footwear, goggles, helmets |
-| 2 | Princeton Tec | princetontec.com | WooCommerce | Headlamps, handhelds, helmet/marker lights, accessories |
-| 3 | Crispi | **crispiaustralia.com.au** | WooCommerce | Full boot range |
+| # | Brand | Site | Platform | Catalogue |
+|---|-------|------|----------|-----------|
+| 1 | Oakley SI | oakleysi.com/en-us | SAP Commerce + Akamai | **1,541 products** (eyewear, apparel, accessories, footwear, goggles) |
+| 2 | Princeton Tec | princetontec.com | WooCommerce | **72 products** |
+| 3 | Crispi | **crispiaustralia.com.au** | WooCommerce | **13 products** |
 
-> The brief said "Cirspi / cirspiaustralia.com.au" — that spelling does **not**
-> resolve (NXDOMAIN). Live site is **crispiaustralia.com.au** (brand *Crispi*).
+> The brief said "Cirspi / cirspiaustralia.com.au" — that spelling does not
+> resolve. Live site is **crispiaustralia.com.au** (brand *Crispi*).
 
 Per product: handle, title, vendor, description (HTML), SEO title/description,
-options (colour / size), one row per variant, SKU, barcode (where public),
-weight in grams, images (main + gallery). Output as **draft** products.
+options (colour / size), one row per variant, SKU, barcode, weight in grams,
+images (main + gallery). Output as **draft** products.
 
-**Scrape-only engagement.** We deliver the import files (CSV, both Matrixify and
-native-Shopify layouts) plus the re-hosted images. The client's team runs the
-Shopify import — we have no access to their store. Our own-store import testing
-(2026-09-10) already caught and fixed three issues that would otherwise have hit
-their team: Crispi importing 0 products (option ordering), Oakley images failing
-(AVIF), and duplicated measurement text.
+**Scrape-only engagement.** We deliver the import files + the re-hosted images.
+The client's team runs the Shopify import — we have no access to their store.
+Our own-store import testing already caught and fixed three issues
+that would otherwise have hit their team: Crispi importing 0 products (option
+ordering), Oakley images failing (AVIF format), and duplicated measurement text.
 
-**Pricing.** The sample sheet ships with `Variant Price` blank. We now capture
-what each source site *shows*:
+**Pricing (`Variant Price`).** We capture what each source *shows*:
 
-| Brand | Price available? | What we put in `Variant Price` |
-|-------|------------------|-------------------------------|
-| Princeton Tec | Yes — public API | source RRP **in USD** (Broad Arrow is AU -> needs FX + margin, or overwrite) |
-| Crispi AU | No — the store API returns `0` for variable products (real prices are on the product page, same gap as SKUs) | blank until product-page parsing is added |
-| Oakley SI | No — login-gated (`<format:price/>` placeholder logged-out) | blank |
+| Brand | Source price | In the sheet |
+|-------|--------------|--------------|
+| Princeton Tec | yes — public API | source RRP **in USD** |
+| Crispi | no — API returns `0` for variable products | blank |
+| Oakley SI | no — login-gated | blank |
 
-So realistically Oakley + Crispi land **blank** and Princeton Tec lands as **USD
-RRP**. The client needs to decide how retail price is set — see §8. Options:
-leave blank and price in Shopify; give us a **margin formula** (e.g.
-`retail = RRP × 1.4`, or `cost ÷ (1 − 0.35)`) to apply; or supply a cost/price
-list to merge.
+So Oakley + Crispi land **blank**, Princeton Tec lands as **USD RRP**. The client
+decides how retail price is set — see section 8.
 
 ---
 
-## 2. Catalogue size (measured 2026-09-10)
+## 2. What's already built and proven
 
-| Brand | Products (approx) | Est. variant rows |
-|-------|-------------------|-------------------|
-| Oakley SI — Eyewear (sunglasses, eyeglasses, goggles, Rx, accessories) | 957 | |
-| Oakley SI — Apparel | 310 | colour × size |
-| Oakley SI — Accessories | 139 | |
-| Oakley SI — Footwear | 35 | colour × size |
-| Oakley SI — Helmets | ~10 | |
-| **Oakley SI total** | **~1,300–1,500** | **~6,000–12,000** |
-| Princeton Tec | 72 (measured) | ~240 |
-| Crispi (AU) | 13 (measured) | ~150 |
+Roughly **32 hours in**. A working codebase (~1,800 lines) — not slideware:
 
----
+| Piece | Status |
+|-------|--------|
+| Reusable framework — fetcher / discovery / transform / image pipeline / two output formats / interactive `run.bat` | ✅ |
+| **Princeton Tec** scraper | ✅ 72 products, USD prices, imports clean |
+| **Crispi** scraper | ✅ 13 products, imports clean (per-size SKUs pending — see Risk 9) |
+| **Oakley — discovery** | ✅ sitemap, all 1,541 URLs in **one request** (was a ~160-request crawl) |
+| **Oakley — anti-bot** | ✅ ScraperAPI, tested end to end — **1 credit / request**, full catalogue ≈ 1,542 credits = **within the free trial**. Circuit breaker + partial-write for any hiccup. |
+| **Oakley — PDP parser** | ✅ title, breadcrumb, cleaned description + measurements, SEO text, images, per-colour SKU + barcode. **Proven in a live Shopify import.** |
+| **Oakley — image re-hosting** | ✅ download (parallel) -> JPEG -> our Cloudflare R2 bucket -> rewrite `Image Src`. Proven in a live Shopify import. **$0** (R2 free tier). |
 
-## 3. Oakley SI — recon findings (2026-09-10)
-
-Loaded several live pages. What we confirmed:
-
-| Question | Finding |
-|----------|---------|
-| Are product pages visible logged-out? | **Yes.** Title, description, features, technologies, breadcrumb, frame/lens colour, all measurements (lens H/W, bridge, arm, frame width), style code, image gallery — all render without an account. |
-| Per-variant barcodes? | **Yes, logged-out.** Each PDP embeds `utag_data.Products = {<UPC>: {Sku, FrameColor, LensColor, LensTechnology, LensType, Category, ModelName, …}}` — parsed with a brace-matcher (JS object literal, unquoted numeric keys). |
-| Price? | **No.** Empty Hybris `<format:price/>` placeholder for logged-out users. Confirmed login-only. |
-| Is there a REST/JSON API (SAP OCC)? | **No.** `/occ/v2/…` falls through to the site search page. HTML scraping only. |
-| Product discovery | **`/en-us/sitemap.xml`** lists all **1,541 product URLs in one request** (+ `<lastmod>` for incremental runs) — replaces a ~160-request category crawl. |
-| JS rendering needed? | **No** for the core data — pages are server-side rendered. |
-| Bot protection? | **Yes — Akamai.** `requests` -> 403. `curl_cffi` (Chrome TLS impersonation) -> clean 200s + full data for ~40–50 requests, then a JS-challenge stub. Sustained crawling needs cookie-seeding / proxies / an unblocker — see Risk 2. |
-| Does the parser actually work? | **Yes.** Built and ran end to end during recon — pulled real products (Standard Issue Holbrook USA Flag Collection, Meta Vanguard) with title, breadcrumb -> Type, cleaned description + measurements, SEO text, 10–15 images, per-colour Sku/UPC — before hitting the volume block. |
-
-**Net:** the parser is done and everything except price is obtainable. The open
-problem is **crawl volume vs. Akamai**, not "can we read the site" — see Risk 2
-for the fix and its pass-through cost.
+**The three things that could have blown the timeline — Akamai, image hosting,
+and product discovery — are done.** What remains is catalogue-scale build and QA.
 
 ---
 
-## 4. Effort estimate (hours)
+## 3. What's left
 
-### Princeton Tec - WooCommerce, public Store API
 | Task | Hrs |
 |------|-----|
-| Recon + field mapping | 1.5 |
-| Scraper (`wc/store/v1` products + variations + images) — **done** | 3.0 |
-| Per-variant SKU/barcode via product-page variation form (API under-reports) | 2.0 |
-| Transform + description cleanup — **done** | 2.0 |
-| QA + revision | 3.0 |
-| **Subtotal** | **~11** |
+| **Oakley: size variants** — parser currently handles eyewear (one-size). Apparel (310), footwear (35) and goggles need the size axis parsed from the PDP + colour×size explosion | 8–10 |
+| **Oakley: category / type** — breadcrumb currently grabs promo-collection names; map to real categories | 3 |
+| **Oakley: colour names** — replace fallback labels (`Matte Black (E655)`) with real swatch names from the page | 3 |
+| **Oakley: colourway grouping** — decide + implement (mirror source vs. group into one product with a Colour option — Risk 6) | 0–4 |
+| **Woo (PT + Crispi): per-variant SKUs** — parse each product page's variation form (Store API under-reports — Risk 9) | 4 |
+| **Full Oakley run + image re-host at scale** — ~3.5 hrs unattended machine time, then verify ~12k images landed | 4 |
+| **QA across 1,541 products** — validation script + sampling + fixing bad rows. *The biggest single item.* | 12 |
+| Transform / SEO polish at scale | 3 |
+| Weights (blank now — Risk 10) | 2 |
+| Revision round (one per brand, included) | 5 |
+| Buffer — site changes, re-runs, edge cases | 4 |
+| Consolidation, import dry-run notes, handover doc | 3 |
+| **Remaining** | **~55–60 hrs** |
 
-### Crispi AU - WooCommerce, public Store API
-| Task | Hrs |
-|------|-----|
-| Recon + field mapping — **done** | 1.0 |
-| Scraper + Avada/Fusion-Builder description cleanup — **done** | 3.0 |
-| Per-size SKU/barcode via product-page variation form (API returns 0–1 of ~12) | 3.0 |
-| EU-size normalisation, width axis — **done** | 1.0 |
-| QA + revision | 2.5 |
-| **Subtotal** | **~10.5** |
-
-### Oakley SI - SAP Commerce, Akamai, ~1,400 products
-| Task | Hrs — light path¹ | Hrs — browser path² |
-|------|------|------|
-| Recon — **done** | 2 | 2 |
-| Fetcher: Chrome-impersonation client **or** Playwright + proxy rotation + throttle | 4 | 10 |
-| Category crawler (all categories, pagination, colourway URLs) | 5 | 6 |
-| PDP parser (name, desc, features, measurements, colours, sizes, UPCs) — **built + tested** | 9 | 10 |
-| Variant explosion (colour × size) + colourway grouping decision | 4 | 4 |
-| **Image re-hosting** — download ~14k images, PNG->JPEG, upload to our Cloudflare R2 bucket, rewrite `Image Src` (Oakley's CDN serves AVIF; Shopify rejects it — see Risk 15) | 6 | 6 |
-| Transform to Shopify template | 4 | 4 |
-| Spec/description cleanup + SEO fields | 3 | 3 |
-| QA at scale (validation script + sampling ~1,400 products) | 8 | 8 |
-| Revision round | 5 | 6 |
-| Buffer: Akamai blocks, re-runs, catalogue changes mid-crawl | 4 | 7 |
-| **Subtotal** | **~54** | **~66** |
-
-¹ *Light path*: a Chrome-TLS-impersonating HTTP client (`curl_cffi` / `hrequests`)
-gets past Akamai for GET-only page fetches. ~1–2 s/page. **Try first** — discovery
-proves whether it works.
-² *Browser path*: headless Chromium (Playwright) or driving a real Chrome over the
-debug port. ~3–8 s/page, heavier, but the reliable fallback.
-
-### Project overhead
-| Task | Hrs |
-|------|-----|
-| Kickoff, template sign-off, sample delivery | 2 |
-| Final consolidation, import dry-run, handover doc | 2 |
-| Contingency | 6 |
-| **Subtotal** | **~10** |
-
-### Total
-
-| Bucket | Hours |
-|--------|-------|
-| Princeton Tec | 11 |
-| Crispi AU | 10.5 |
-| Oakley SI | 54–66 |
-| Overhead + contingency | 10 |
-| **TOTAL** | **~85–97 hrs** |
-| — **already complete** (discovery for all 3, format spec, working Princeton Tec + Crispi + Oakley parser, live import testing) | **~13 hrs** |
-| **Remaining** | **~72–84 hrs** |
+**Total project: ~32 done + ~57 left ≈ ~90 hrs** — unchanged from the original
+estimate. The *risk* dropped a lot; the *work* didn't, because scope grew (two
+output formats, the R2 infrastructure, `run.bat`, parallel pipeline, `--fast`
+mode) and the apparel size-variant work was under-costed first time round.
 
 ---
 
-## 5. Price (AUD)
+## 4. Price (AUD)
 
-Rate basis: **AUD $22 / hr** — skilled scraping/dev work, PH-based, existing
-relationship. (For reference, a Western scraping agency would quote this job at
-AUD $7,000–10,000.)
-
-### Option A — all three brands
+Rate: **AUD $22 / hr** — skilled scraping/dev work, PH-based, existing
+relationship. A Western scraping agency quotes this kind of job at
+**AUD $7,000–10,000**.
 
 | Line | Hrs | AUD |
 |------|-----|-----|
-| Discovery + working prototype (all 3 parsers + live import testing) — **done** | 13 | $285 |
-| Princeton Tec — finish | 6 | $130 |
-| Crispi AU — finish | 7 | $155 |
-| Oakley SI — full build (incl. image rehosting) | 55 | $1,210 |
-| Overhead + contingency | 10 | $220 |
-| **Labour total** | **~91** | **≈ $2,000** |
-| Data infrastructure (unblocker API / residential proxies for Oakley) — **billed at cost** | — | **$0–150** |
+| Built + proven to date (framework, 3 parsers, anti-bot, image pipeline, live testing) | 32 | $700 |
+| Princeton Tec — finish (SKUs, QA) | 4 | $90 |
+| Crispi — finish (SKUs, QA) | 5 | $110 |
+| Oakley SI — remaining (size variants, category/colour, full run, scale QA, revision) | 40 | $880 |
+| Overhead + contingency | 8 | $175 |
+| **Labour total** | **~89** | **≈ $2,000** |
+| Data infrastructure | — | **~AUD $75** — one month of ScraperAPI's Hobby plan (USD $49 / 100k credits) covers the full crawl **plus dev re-runs** with huge headroom; cancelled on delivery. R2 image hosting is free tier ($0). Billed at cost with the receipt. |
 
-The infrastructure line is a **pass-through**: Oakley SI's Akamai protection needs
-an unblocker service (Zyte / ScraperAPI / Bright Data) or residential proxies to
-crawl ~1,400 products. One-time, ~USD $15–100 depending on provider; free-tier
-credits may cover it entirely. Cancelled after the scrape. Not needed for
-Princeton Tec or Crispi.
+**Client-facing offer:** *fixed at* **AUD $2,000** labour + **~$75 infrastructure
+at cost** for all three brands as scoped. Out-of-scope work at $22/hr.
 
-**Client-facing offer:** *fixed at* **AUD $2,000** for all three brands as scoped
-(labour), **plus infrastructure at cost (capped at AUD $150)**. Out-of-scope work
-at $22/hr.
-
-### Option B — phased (recommended)
+### Phased option (lower risk for both sides)
 
 | Phase | Scope | AUD |
 |-------|-------|-----|
-| 1 | Princeton Tec + Crispi (near done) | **$350** |
-| 2 | Oakley SI — **eyewear only** (~957 products) | **$850** + infra at cost |
-| 3 | Oakley SI — apparel + accessories + footwear (~450 products) | **$650** |
-| | **All phases** | **$1,850** + infra (≤ $150) |
+| 1 | Princeton Tec + Crispi — delivered in week 1 | **$350** |
+| 2 | Oakley SI — **eyewear** (~957 products) | **$900** |
+| 3 | Oakley SI — apparel + accessories + footwear + goggles (~580) | **$750** |
+| | **All phases** | **$2,000** |
 
-Phase 1 delivers in week 1. Client sees the import work before committing to
-phases 2–3. Lowest risk for both sides.
+Phase 1 lands first so the client sees the import working before committing to
+2–3.
 
-### Invoice schedule (Option A)
+### Invoice schedule
 
 | Milestone | AUD |
 |-----------|-----|
-| Discovery + prototype (delivered) | $220 |
-| Princeton Tec + Crispi files (week 1) | $290 |
-| Oakley SI + final delivery (weeks 2–4) | $1,490 |
-| Data infrastructure (receipts attached) | at cost, ≤ $150 |
-| **Total** | **$2,000 + infra** |
+| On sign-off (work to date) | $500 |
+| Princeton Tec + Crispi files (week 1) | $400 |
+| Oakley SI + final consolidated delivery | $1,100 |
+| Infrastructure (ScraperAPI receipt) | ~$75 at cost |
+| **Total** | **$2,000 + ~$75** |
 
 ---
 
-## 6. Timeline
+## 5. Timeline
 
-~10 hrs already done. Remaining ~70-82 hrs at ~20 hrs/week -> **~4 weeks**.
+~32 hrs done, ~57 left at ~20 hrs/week -> **~3 weeks**.
 
 | Week | Deliverable |
 |------|-------------|
-| 1 | Discovery sign-off · **Princeton Tec + Crispi files delivered** · Oakley fetcher proven |
-| 2 | Oakley category crawl + PDP parser · sample (~50 products) for review |
-| 3 | Oakley full crawl + transform · first full file |
-| 4 | QA, fixes, final consolidated delivery + handover |
+| 1 | Sign-off · **Princeton Tec + Crispi files delivered** · Oakley eyewear sample (~50 products) for review |
+| 2 | Oakley size variants + category/colour · **full 1,541-product run** · first complete file |
+| 3 | QA across the catalogue, fixes, final consolidated delivery + handover |
 
-The Oakley crawl itself runs ~20–35 hrs of machine time spread across several
-days (batches, not flat-out) — that overlaps weeks 2–3 and isn't hands-on time.
+The full Oakley crawl is **~3.5 hrs of unattended machine time in one sitting**
+(scrape ~2.3 hrs via ScraperAPI + parallel image download ~40 min + R2 upload
+~30 min) — not a multi-day batch job. It slots into week 2 and needs no
+babysitting.
 
 ---
 
-## 7. Risks / assumptions to confirm
+## 6. Risks / assumptions to confirm
 
-1. **Oakley SI price is login-gated** (ID.me: active military / gov / first
-   responder — we can't register). Everything else is visible logged-out
-   (confirmed in recon, §3). Prices later = client price list, or a logged-in
-   session we can drive (+6–10 hrs).
-2. **Oakley SI Akamai bot protection — tested 2026-09-10.** A Chrome-TLS
-   impersonating client (`curl_cffi`) gets clean 200s and full page data for the
-   **first ~40–50 requests**, then Akamai switches to a JS-challenge stub (still
-   HTTP 200, no product data). The parser is built and pulled real products end
-   to end before the block; it is a *volume* problem, not a "can't read the site"
-   problem. To crawl all ~1,400 products one of these is needed (cheapest first):
-   (a) seed the session with Akamai cookies from one real-browser visit, refresh
-   every ~30–60 min (~1–2 s/page between refreshes); (b) residential proxy
-   rotation (~USD $5–15 bandwidth for the catalogue); (c) an unblocker API
-   (ScraperAPI / Zyte / BrightData, ~USD $50–150). Costed as the "browser path"
-   spread in §4; the proxy/unblocker fee is a pass-through, not in the hours.
-3. **Detection / legal exposure** *(not legal advice — see a lawyer if unsure).*
-   - **Detection:** Akamai flags *traffic patterns and IPs*, automatically. The
-     "security has been notified" text is boilerplate, not an incident report.
-     Realistic worst case = a temporary IP block. Not a personal-threat situation.
-   - **Scraping itself:** we fetch only public, non-logged-in pages — no login
-     bypass, no checkout, no clickwrap ToS accepted — at a polite rate, once.
-     Public-data scraping is generally not a criminal matter (US: *hiQ*,
-     *Van Buren*; AU has no anti-scraping statute). A browsewrap ToS breach is a
-     *contract* issue whose usual remedy is "stop," not damages.
-   - **The real exposure is copyright** — Oakley/Luxottica, Princeton Tec and
-     Crispi own their product photos and marketing copy. Publishing them in Broad
-     Arrow's store is a reproduction. This is fine *if Broad Arrow is an
-     authorised reseller/stockist* of each brand (which is the whole premise of
-     the store); it is the client's problem if not.
-   - **Protect yourself:** get Howard's written confirmation that Broad Arrow is
-     authorised to sell and list all three brands, and put a clause in the
-     engagement that the client warrants this and indemnifies you for
-     third-party IP claims arising from the data. The contractor doing the
-     technical work is far less exposed than the party publishing commercially.
-4. **Crispi AU catalogue is only 13 products.** Verified against
-   crispiaustralia.com.au's store API + category counts — that is the *entire*
-   site. Crispi globally makes 40+ models; if the client expects the full range,
-   that means scraping crispi.com / crispioutdoor.com instead (different site,
-   re-scope). **Confirm which catalogue Howard wants.**
-5. **New / removed products during the crawl.** A crawl is a snapshot over
-   several days. Handling: the crawler is re-runnable and idempotent (keyed on
-   style code); the final QA pass re-pulls every category listing and diffs
-   against what was scraped, so adds/removes in the window are caught and the
-   deltas re-scraped before delivery. Oakley adds only a handful of products a
-   week, so impact is small. Keeping the sheet current *after* handover = a
-   scheduled weekly delta run, quoted separately.
-6. **Colourway grouping (Oakley).** Oakley lists many colours of one model as
+1. **Oakley price is login-gated** (ID.me: active military / gov / first
+   responder — we can't register). Everything else renders logged-out (proven).
+   Prices later = a client price list, or a logged-in session we can drive
+   (+6–10 hrs).
+2. **Oakley Akamai — no longer a project risk.** ScraperAPI was tested end to
+   end to end: clean pages, real product data, **1 credit per request**.
+   One full crawl ≈ 1,542 credits; the project (with dev re-runs) needs
+   ~6–10k, so we run on one month of the **Hobby plan** ($49 / 100k credits),
+   cancelled on delivery — the infra line in section 4. Circuit breaker +
+   partial-write mean a hiccup costs ~30 s and never loses scraped work.
+3. **Detection / legal** *(not legal advice).* Akamai flags traffic/IPs
+   automatically; worst realistic case was a temporary IP block, now moot with
+   ScraperAPI. We fetch only public, non-logged-in pages. The real exposure is
+   **copyright** — the brands own their photos and copy; publishing them is fine
+   *if Broad Arrow is an authorised stockist* of each. **Protect yourself:** get
+   that in writing plus an indemnity clause (Risk 12).
+4. **Crispi = 13 products.** Verified — that's the entire AU site. Crispi
+   globally makes 40+ models; if the client wants the full range that's a
+   different site (crispi.com), re-scoped. **Confirm which catalogue.**
+5. **Size variants (Oakley apparel/footwear/goggles).** The parser handles
+   eyewear (one-size) today. ~580 products need the size axis parsed from the
+   PDP and exploded colour×size. Costed in section 3 (~8–10 hrs).
+6. **Colourway grouping (Oakley).** Oakley lists colours of one model as
    separate product pages. Default = mirror the source (one Shopify product per
-   colourway). Grouping them into one product with a Colour option adds ~6–10
-   hrs. Confirm preference.
-7. **Product count is now known: 1,541** (from the sitemap). True *variant*
-   count (and Oakley QA effort) is known only after crawl 1.
-8. **Descriptions**: source sites use heavy page-builder HTML. Sample keeps raw
-   markup; we default to *cleaned* (strip wrapper `<div>`/`<style>`, keep
-   headings/lists/copy). Confirm cleaned vs. raw.
-9. **Images**: source image URLs go in `Image Src`; Shopify pulls them on import.
-   Re-hosting/renaming = +5–8 hrs.
-10. **Barcodes / weights**: Oakley SI exposes per-variant UPCs in the page
-    (confirmed). WooCommerce Store API does **not** — we read JSON-LD `gtin` from
-    each product page where present, else blank. Weights blank where the source
-    omits them.
-11. **WooCommerce variation coverage**: Princeton Tec / Crispi public API
-    under-reports variations (Crispi returns 0–1 of ~12 sizes). The prototype
-    rebuilds the full option grid from parent attributes so *structure* is right,
-    but those rows have no SKU until we parse each product page's variation form —
-    included in the finish hours (§4).
-12. **Product Category / Type / Tags**: blank in the sample. Leave blank, or
-    auto-map from source breadcrumbs — confirm.
-13. **One revision round** per brand included. Further passes at $22/hr.
-14. **Legal / authorisation**: assumes Broad Arrow Tactical has a
-    reseller/distributor arrangement with these brands and the right to list
-    their catalogues and use their photos/copy. Get it in writing + an indemnity
-    clause (see Risk 3). Client's responsibility.
-15. **Oakley images must be re-hosted (Option A — our bucket).**
-    `assets*.oakley.com` serves AVIF, which Shopify rejects; the query-string
-    workaround doesn't survive the CSV importer, and browser-downloaded copies
-    are AVIF too. Since this is scrape-only (no access to the client's Shopify),
-    the pipeline is: `download_images()` pulls origin PNGs -> convert to flattened
-    JPEG (~1 MB -> ~80 KB) -> upload to a **Cloudflare R2** bucket we host ->
-    CSV `Image Src` points at the public bucket URLs. Verified end to end on a
-    sample. ~14 k images, ~1–2 GB — **free tier, $0**. The bucket stays up for
-    the import window (~2–4 weeks) then we delete it. Costed at ~6 hrs in §4.
-    **Woo (Princeton Tec, Crispi) images import fine by URL — no re-hosting.**
-16. **Import method — we deliver both layouts.** The sample is a **Matrixify**
-    sheet (needs the Matrixify app). We also ship a **native Shopify CSV**
-    (`run.py --format shopify`) for the built-in importer — the client's team
-    picks. Live testing: Princeton Tec imports clean; Crispi "0 products"
-    (options) and Oakley images (Risk 15) are fixed.
-17. **One-time capture.** Ongoing sync quoted separately.
+   colourway). Grouping into one product with a Colour option adds ~4 hrs.
+   Confirm preference.
+7. **Descriptions.** Source sites use heavy page-builder HTML. We default to
+   *cleaned* (strip wrapper divs/styles, keep headings/lists/copy). Confirm
+   cleaned vs. raw.
+8. **Barcodes / weights.** Oakley exposes per-variant UPCs in the page
+   (captured). Weights aren't on the PDP -> blank unless a source is provided.
+9. **WooCommerce variation coverage.** Princeton Tec / Crispi's public API
+   under-reports variations (Crispi returns 0–1 of ~12 sizes). The scraper
+   rebuilds the full option grid so *structure* is right, but those rows have no
+   SKU until we parse each product page's variation form — in the finish hours.
+10. **Product Category / Type / Tags** — blank in the sample. Leave blank, or
+    auto-map from source breadcrumbs. Confirm.
+11. **New / removed products mid-project.** The crawl is now ~3.5 hrs, so this
+    barely applies; the final QA pass re-checks the sitemap and picks up any
+    delta before delivery. Keeping the sheet current *after* handover = a
+    scheduled weekly delta run, quoted separately.
+12. **Legal / authorisation.** Assumes Broad Arrow has a reseller arrangement
+    with all three brands and the right to list their catalogues and use their
+    photos/copy. Get it in writing + an indemnity clause. Client's
+    responsibility.
+13. **Image bucket.** We host the ~12k Oakley images on our Cloudflare R2 for the
+    import window, then delete. Free tier, $0. One date needed from the client:
+    when their import is done.
+14. **Import method.** Sample is a **Matrixify** sheet (needs the Matrixify app).
+    We also ship a **native Shopify CSV** for the free built-in importer — the
+    client's team picks.
+15. **One revision round** per brand included. Further passes at $22/hr.
+16. **One-time capture.** Ongoing sync quoted separately.
 
 ---
 
-## 8. To start
+## 7. To start
 
-- Confirm the sample sheet is final, and whether the client imports via
-  **Matrixify** or the native importer (we deliver both layouts).
-- **Crispi**: the AU site has only 13 products — is that the target, or the full
-  global Crispi range (different site)? (Risk 4)
-- Cleaned vs. raw descriptions (Risk 8).
+- Confirm the sample sheet is final; Matrixify or native importer (we deliver
+  both).
+- **Crispi**: AU site = 13 products — is that the target, or the full global
+  range? (Risk 4)
+- Cleaned vs. raw descriptions (Risk 7).
 - Oakley: mirror source vs. group colourways (Risk 6).
-- **Oakley image bucket** — one date from the client: when will their import be
-  finished, so we know how long to keep the image bucket live (Risk 15). We set
-  up the Cloudflare R2 bucket + token ourselves; nothing needed from them.
 - **Pricing** — pick one:
-  1. Leave `Variant Price` blank, set all pricing in Shopify after import.
-  2. Give us a **margin formula** to apply to the source RRP we capture
-     (e.g. `retail = RRP × 1.4`, or `retail = cost ÷ (1 − margin%)`), and say
-     whether Princeton Tec USD should be FX-converted to AUD (and at what rate).
-  3. Supply a cost or price list (CSV, keyed by SKU/UPC) to merge in.
-  Note: only Princeton Tec has a source price via API; Crispi + Oakley land blank
-  regardless (see §1).
+  1. Leave `Variant Price` blank, price in Shopify after import.
+  2. Give us a **margin formula** for Princeton Tec's USD RRP (e.g.
+     `retail = RRP × 1.4`), and an AUD FX rate.
+  3. Supply a cost / price list (CSV keyed by SKU/UPC) to merge.
 - Confirm Broad Arrow is authorised to sell + list all three brands, in writing
-  (Risk 3 / 14).
-- Go-ahead for the ~1-day paid discovery (credited if you proceed).
+  (Risk 3 / 12).
+- Go-ahead + first invoice.
