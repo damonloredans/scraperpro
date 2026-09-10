@@ -57,14 +57,16 @@ Loaded several live pages. What we confirmed:
 | Question | Finding |
 |----------|---------|
 | Are product pages visible logged-out? | **Yes.** Title, description, features, technologies, breadcrumb, frame/lens colour, all measurements (lens H/W, bridge, arm, frame width), style code, image gallery — all render without an account. |
-| Per-variant barcodes? | **Yes, logged-out.** Each PDP embeds `window.productObj.variants` keyed by UPC, plus a rich `__utagProducts` object (Sku, FrameColor, LensColor, LensTechnology, LensType, Size, ModelCode, LensUPC, image, warranty…). |
-| Price? | **No.** Rendered as an empty Hybris `<format:price/>` placeholder for logged-out users. Confirmed login-only. |
+| Per-variant barcodes? | **Yes, logged-out.** Each PDP embeds `utag_data.Products = {<UPC>: {Sku, FrameColor, LensColor, LensTechnology, LensType, Category, ModelName, …}}` — parsed with a brace-matcher (JS object literal, unquoted numeric keys). |
+| Price? | **No.** Empty Hybris `<format:price/>` placeholder for logged-out users. Confirmed login-only. |
 | Is there a REST/JSON API (SAP OCC)? | **No.** `/occ/v2/…` falls through to the site search page. HTML scraping only. |
-| JS rendering needed? | **Minimal.** Pages are server-side rendered — the HTML already contains the product data. `__utagProducts` is the only piece that needs the page's JS to have run. |
-| Bot protection? | **Yes — Akamai.** Plain HTTP clients get HTTP 403 / a "security has been notified" page. Needs a browser-like client (see §6). |
+| JS rendering needed? | **No** for the core data — pages are server-side rendered. |
+| Bot protection? | **Yes — Akamai.** `requests` → 403. `curl_cffi` (Chrome TLS impersonation) → clean 200s + full data for ~40–50 requests, then a JS-challenge stub. Sustained crawling needs cookie-seeding / proxies / an unblocker — see Risk 2. |
+| Does the parser actually work? | **Yes.** Built and ran end to end during recon — pulled real products (Standard Issue Holbrook USA Flag Collection, Meta Vanguard) with title, breadcrumb→Type, cleaned description + measurements, SEO text, 10–15 images, per-colour Sku/UPC — before hitting the volume block. |
 
-**Net:** everything needed is obtainable except price. The work is a large,
-careful HTML crawl behind Akamai — not a blocked site, but a slow one.
+**Net:** the parser is done and everything except price is obtainable. The open
+problem is **crawl volume vs. Akamai**, not "can we read the site" — see Risk 2
+for the fix and its pass-through cost.
 
 ---
 
@@ -198,44 +200,63 @@ days (batches, not flat-out) — that overlaps weeks 2–3 and isn't hands-on ti
    responder — we can't register). Everything else is visible logged-out
    (confirmed in recon, §3). Prices later = client price list, or a logged-in
    session we can drive (+6–10 hrs).
-2. **Oakley SI Akamai bot protection.** Discovery's first job is to prove the
-   light fetcher (`curl_cffi`) works; if not, we fall to a real/headless browser
-   (slower, costed as the "browser path" in §4). Real risk of intermittent
-   blocks and a slower crawl either way — hence the buffer line.
-3. **New / removed products during the crawl.** A crawl is a snapshot over
+2. **Oakley SI Akamai bot protection — tested 2026-09-10.** A Chrome-TLS
+   impersonating client (`curl_cffi`) gets clean 200s and full page data for the
+   **first ~40–50 requests**, then Akamai switches to a JS-challenge stub (still
+   HTTP 200, no product data). The parser is built and pulled real products end
+   to end before the block; it is a *volume* problem, not a "can't read the site"
+   problem. To crawl all ~1,400 products one of these is needed (cheapest first):
+   (a) seed the session with Akamai cookies from one real-browser visit, refresh
+   every ~30–60 min (~1–2 s/page between refreshes); (b) residential proxy
+   rotation (~USD $5–15 bandwidth for the catalogue); (c) an unblocker API
+   (ScraperAPI / Zyte / BrightData, ~USD $50–150). Costed as the "browser path"
+   spread in §4; the proxy/unblocker fee is a pass-through, not in the hours.
+3. **Detection / legal exposure.** Akamai flags *traffic patterns and IPs*, not
+   people — it's automated rate-limiting, and the "security has been notified"
+   text is boilerplate, not an incident report. Worst realistic outcome is a
+   temporary IP block. We only fetch public, non-logged-in pages (no login
+   bypass, no checkout, no ToS click-through), at a polite rate, once. Civil risk
+   is low and sits with the client's authorisation to resell these brands
+   (Risk 14); this is not legal advice.
+4. **Crispi AU catalogue is only 13 products.** Verified against
+   crispiaustralia.com.au's store API + category counts — that is the *entire*
+   site. Crispi globally makes 40+ models; if the client expects the full range,
+   that means scraping crispi.com / crispioutdoor.com instead (different site,
+   re-scope). **Confirm which catalogue Howard wants.**
+5. **New / removed products during the crawl.** A crawl is a snapshot over
    several days. Handling: the crawler is re-runnable and idempotent (keyed on
    style code); the final QA pass re-pulls every category listing and diffs
    against what was scraped, so adds/removes in the window are caught and the
    deltas re-scraped before delivery. Oakley adds only a handful of products a
    week, so impact is small. Keeping the sheet current *after* handover = a
    scheduled weekly delta run, quoted separately.
-4. **Colourway grouping (Oakley).** Oakley lists many colours of one model as
+6. **Colourway grouping (Oakley).** Oakley lists many colours of one model as
    separate product pages. Default = mirror the source (one Shopify product per
    colourway). Grouping them into one product with a Colour option adds ~6–10
    hrs. Confirm preference.
-5. **Row counts are estimates** from category headers. True variant count (and
+7. **Row counts are estimates** from category headers. True variant count (and
    Oakley QA effort) is known only after crawl 1.
-6. **Descriptions**: source sites use heavy page-builder HTML. Sample keeps raw
+8. **Descriptions**: source sites use heavy page-builder HTML. Sample keeps raw
    markup; we default to *cleaned* (strip wrapper `<div>`/`<style>`, keep
    headings/lists/copy). Confirm cleaned vs. raw.
-7. **Images**: source image URLs go in `Image Src`; Shopify pulls them on import.
+9. **Images**: source image URLs go in `Image Src`; Shopify pulls them on import.
    Re-hosting/renaming = +5–8 hrs.
-8. **Barcodes / weights**: Oakley SI exposes per-variant UPCs in the page
-   (confirmed). WooCommerce Store API does **not** — we read JSON-LD `gtin` from
-   each product page where present, else blank. Weights blank where the source
-   omits them.
-9. **WooCommerce variation coverage**: Princeton Tec / Crispi public API
-   under-reports variations (Crispi returns 0–1 of ~12 sizes). The prototype
-   rebuilds the full option grid from parent attributes so *structure* is right,
-   but those rows have no SKU until we parse each product page's variation form —
-   included in the finish hours (§4).
-10. **Product Category / Type / Tags**: blank in the sample. Leave blank, or
+10. **Barcodes / weights**: Oakley SI exposes per-variant UPCs in the page
+    (confirmed). WooCommerce Store API does **not** — we read JSON-LD `gtin` from
+    each product page where present, else blank. Weights blank where the source
+    omits them.
+11. **WooCommerce variation coverage**: Princeton Tec / Crispi public API
+    under-reports variations (Crispi returns 0–1 of ~12 sizes). The prototype
+    rebuilds the full option grid from parent attributes so *structure* is right,
+    but those rows have no SKU until we parse each product page's variation form —
+    included in the finish hours (§4).
+12. **Product Category / Type / Tags**: blank in the sample. Leave blank, or
     auto-map from source breadcrumbs — confirm.
-11. **One revision round** per brand included. Further passes at $22/hr.
-12. **Legal / authorisation**: assumes Broad Arrow Tactical has a
+13. **One revision round** per brand included. Further passes at $22/hr.
+14. **Legal / authorisation**: assumes Broad Arrow Tactical has a
     reseller/distributor arrangement with these brands and the right to list
     their catalogues. Client's responsibility to confirm before we publish.
-13. **One-time capture.** Ongoing sync quoted separately.
+15. **One-time capture.** Ongoing sync quoted separately.
 
 ---
 
@@ -243,7 +264,9 @@ days (batches, not flat-out) — that overlaps weeks 2–3 and isn't hands-on ti
 
 - Confirm the sample sheet is final (and that it's imported via **Matrixify**,
   not the native Shopify importer).
-- Cleaned vs. raw descriptions (Risk 6).
-- Oakley: mirror source vs. group colourways (Risk 4).
+- **Crispi**: the AU site has only 13 products — is that the target, or the full
+  global Crispi range (different site)? (Risk 4)
+- Cleaned vs. raw descriptions (Risk 8).
+- Oakley: mirror source vs. group colourways (Risk 6).
 - Prices excluded — confirmed?
 - Go-ahead for the ~1-day paid discovery (credited if you proceed).

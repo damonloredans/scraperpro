@@ -10,14 +10,19 @@ pricing and risks.
 
 ## Brands
 
-| Brand | Site | Platform | Status |
-|-------|------|----------|--------|
-| Princeton Tec | princetontec.com | WooCommerce (public Store API) | ✅ working |
-| Crispi (AU) | **crispiaustralia.com.au** | WooCommerce (public Store API) | ✅ working |
-| Oakley SI | oakleysi.com/en-us | SAP Commerce Cloud + Akamai | 🚧 scaffold — see `scraperpro/sites/oakleysi.py` |
+| Brand | Site | Platform | Products | Status |
+|-------|------|----------|----------|--------|
+| Princeton Tec | princetontec.com | WooCommerce (public Store API) | 72 | ✅ working — SKUs partial (see gap) |
+| Crispi (AU) | **crispiaustralia.com.au** | WooCommerce (public Store API) | **13** | ✅ working — per-size SKUs missing (see gap) |
+| Oakley SI | oakleysi.com/en-us | SAP Commerce Cloud + Akamai | ~1,400 | 🟡 discovery + PDP parser work; blocked by Akamai at volume |
 
 > The brief wrote "Cirspi / cirspiaustralia.com.au" — that domain does not
 > resolve. The real site is **crispiaustralia.com.au** (brand *Crispi*).
+>
+> **Crispi AU has only 13 products.** That is the complete `crispiaustralia.com.au`
+> catalogue (verified via the store API + category counts). Crispi *globally*
+> makes 40+ models — if Broad Arrow wants the full range, that's a different site
+> (crispi.com / crispioutdoor.com), not the AU distributor. Confirm with Howard.
 
 ## Setup
 
@@ -72,32 +77,62 @@ run.py
 parse each product page's variation form (`data-product_variations` /
 `?wc-ajax=get_variation`). Costed in the "finish" hours in `docs/quote.md`.
 
-### Oakley SI path — designed, not built
+### Oakley SI path — partially built (`scraperpro/sites/oakleysi.py` + `scraperpro/fetch.py`)
 
-Recon (2026-09-10, see `docs/quote.md` §3) found:
+Recon 2026-09-10 (see `docs/quote.md` §3):
 
-- Product pages are **server-side rendered** — the HTML already holds name,
-  description, features, measurements, breadcrumb, colours, style code, images.
-- Each PDP embeds `window.productObj.variants` (keyed by UPC) and a rich
-  `window.__utagProducts` object (Sku, FrameColor, LensColor, LensTechnology,
-  Size, ModelCode, LensUPC, image, …) — **barcodes and attributes without login**.
-- **Price** is an empty `<format:price/>` placeholder logged-out → login-only,
-  treated as out of scope.
-- **No** SAP OCC/REST API (`/occ/v2/…` 404s to search).
-- **Akamai** blocks plain HTTP clients (403). Needs a browser-like fetcher.
+- Product pages are **server-side rendered** — the HTML holds name, description,
+  features, measurements, breadcrumb, colours, style code, images.
+- Each PDP embeds `utag_data.Products = {<UPC>: {Sku, FrameColor, LensColor,
+  LensTechnology, LensType, Category, ModelName, …}}` — **per-variant barcodes +
+  attributes, no login**. Parsed with a brace-matcher (it's a JS object literal
+  with unquoted numeric keys, not JSON).
+- **Price** is an empty `<format:price/>` placeholder logged-out → out of scope.
+- **No** SAP OCC/REST API (`/occ/v2/…` → search page).
 
-Planned design — a pluggable **fetcher** behind the parser so it can swap without
-touching parsing logic:
+**What works:** category discovery (48 links/page, paginates `?q=…&page=N`) and
+the PDP parser. Pulled real products end to end — title, breadcrumb→Type, cleaned
+description + measurements, SEO description, image gallery, per-colour Sku/UPC.
 
-| Fetcher | Speed | Use when |
-|---------|-------|----------|
-| `curl_cffi` / `hrequests` (Chrome-TLS impersonation, plain GET) | ~1–2 s/page | **try first** — pages are SSR, no JS needed except `__utagProducts` |
-| Playwright headless Chromium | ~3–6 s/page | curl_cffi gets challenged |
-| Playwright/Selenium over CDP to a real Chrome (`--remote-debugging-port=9222`) | ~4–8 s/page | Akamai flags headless too — reuses your real profile/fingerprint |
+**What's stubbed:** apparel/footwear/goggle *size* explosion (eyewear is
+one-size); colourway grouping (currently one Shopify product per style code).
 
-`__utagProducts` needs the page's JS to have run, so if the light fetcher is used
-we either (a) re-derive those fields from the SSR HTML + `productObj`, or (b) use
-the browser fetcher for PDPs and the light one for listings.
+#### The Akamai wall
+
+Oakley SI sits behind **Akamai Bot Manager**. Observed behaviour:
+
+| Client | Result |
+|--------|--------|
+| `requests` / WebFetch | HTTP 403 immediately |
+| `curl_cffi` (Chrome TLS/JA3 impersonation) | HTTP 200 for the first ~40–50 requests, then a 2.7 KB JS-challenge stub (still 200, no product data) |
+| Real / headless browser | runs the JS sensor → gets the `_abck` / `bm_sv` cookies → sustained access, but ~3–8 s/page and needs stealth patches (plain Selenium/Playwright is fingerprinted too) |
+
+`fetch.py`'s `CurlCffiFetcher` throttles (3 s + jitter), and `expect=` detects
+the challenge stub (page missing `/en-us/product/` or `pdp-hero-name`) and backs
+off exponentially. That's enough for small batches; **not** enough for 1,400
+products from one IP in one sitting.
+
+Production options (in order of cost):
+1. **Cookie-seed**: open the site once in a real browser, copy the Akamai
+   cookies into the `curl_cffi` session, refresh when they expire (~30–60 min).
+   Fast bulk crawl (~1–2 s/page) between refreshes. Cheapest.
+2. **Residential proxy rotation** — each IP gets ~50 requests before cooldown, so
+   rotate. ~USD $5–15 for the whole catalogue in bandwidth.
+3. **Unblocker API** (ScraperAPI / Zyte / BrightData Web Unlocker) — hands back
+   solved HTML. ~USD $50–150 for the full catalogue, zero block-management.
+
+#### Why not "just Selenium / BeautifulSoup"?
+
+- **BeautifulSoup is already the parser here.** It has no network layer — it
+  can't fetch anything, so it can't be blocked *or* get past a block. Something
+  else (requests / curl_cffi / a browser) fetches the HTML and hands it to BS4.
+- **Selenium (a real browser) does help** — it runs Akamai's JS sensor, so it
+  gets the cookies a plain HTTP client can't. But it's 3–8 s/page vs ~1 s, it's
+  heavy for ~1,400 pages, and vanilla Selenium/Playwright is itself fingerprinted
+  (`navigator.webdriver`, headless quirks, canvas) — you still need
+  `undetected-chromedriver` / stealth / a real profile. So the strategy is: fast
+  path (curl_cffi, or curl_cffi + browser-seeded cookies) for the bulk, browser
+  only where it gets challenged. `fetch.py` is the swap point.
 
 ### New / removed products mid-crawl
 
@@ -114,7 +149,9 @@ Scope / pricing / risks: **`docs/quote.md`**.
 
 ## Known limitations
 
-- **Oakley SI not implemented** — scaffold + design only.
+- **Oakley SI** — parser works, but Akamai blocks sustained crawling from one IP
+  (see "The Akamai wall" above). Needs cookie-seeding / proxies / an unblocker
+  for the full ~1,400 products. Size explosion for apparel/footwear is stubbed.
 - WooCommerce variation SKUs incomplete (see gap note above).
 - Gallery images attached to variant rows positionally; colour-accurate pinning
   uses `Variant Image`.
