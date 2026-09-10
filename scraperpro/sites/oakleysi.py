@@ -236,44 +236,54 @@ class OakleySIScraper:
         prog.done()
         return out
 
-    def download_images(self, products: list[Product], out_dir: str) -> int:
-        """Save every product image to <out_dir>/<handle>/NN.png (origin PNG).
+    def download_images(self, products: list[Product], out_dir: str, workers: int = 16) -> int:
+        """Download every product image to <out_dir>/<handle>/NN.png, in parallel.
 
-        Oakley images can't be imported into Shopify by URL (see `_images`), so
-        the pipeline is: download here, bulk-upload to Shopify Files (or attach
-        via the Admin API when creating the product), then swap the CSV
-        `Image Src` values for the Shopify-hosted URLs.
-
-        Image requests are NOT Akamai-gated the way page requests are, so a plain
-        client works.
+        Oakley images can't be imported into Shopify by URL (see `_images`) — they
+        get re-hosted (tools/rehost_images.py). Image requests are NOT Akamai-gated,
+        so a plain client + a big thread pool is fine and ~15x faster than serial.
+        The `?imwidth=1400` on the URL also keeps files ~1/3 the size.
         """
         import os
+        from concurrent.futures import ThreadPoolExecutor, as_completed
         import requests
 
         sess = requests.Session()
-        sess.headers["Accept"] = "image/*"          # not "image/avif" -> CDN returns origin PNG
-        total = sum(len(dict.fromkeys(p.images)) for p in products)
-        print(f"  [images] downloading up to {total} files for {len(products)} products...")
-        n = skipped = 0
-        for pi, p in enumerate(products, 1):
+        sess.headers["Accept"] = "image/*"          # not "image/avif" -> origin, not AVIF
+
+        jobs = []                                    # (url, dest)
+        for p in products:
             pdir = os.path.join(out_dir, p.handle)
             os.makedirs(pdir, exist_ok=True)
             for idx, url in enumerate(dict.fromkeys(p.images), 1):
                 dest = os.path.join(pdir, f"{idx:02d}.png")
-                if os.path.exists(dest):
-                    skipped += 1
-                    continue
-                try:
-                    r = sess.get(url, timeout=30)
-                    r.raise_for_status()
-                except requests.RequestException as e:
-                    print(f"    ! image {url}: {e}")
-                    continue
+                if not os.path.exists(dest):
+                    jobs.append((url, dest))
+
+        skipped = sum(len(dict.fromkeys(p.images)) for p in products) - len(jobs)
+        print(f"  [images] {len(jobs)} to download ({skipped} already present), {workers} workers")
+
+        def fetch(job):
+            url, dest = job
+            url = url.split("?")[0] + "?imwidth=1400"   # resized PNG, ~1/3 the bytes
+            try:
+                r = sess.get(url, timeout=45)
+                r.raise_for_status()
                 with open(dest, "wb") as fh:
                     fh.write(r.content)
-                n += 1
-                time.sleep(0.1)
-            print(f"  [images] {pi}/{len(products)}  {p.handle[:45]}  ({n} new, {skipped} already had)")
+                return True
+            except requests.RequestException as e:
+                print(f"    ! {url}: {e}")
+                return False
+
+        n = done = 0
+        with ThreadPoolExecutor(max_workers=workers) as ex:
+            for fut in as_completed(ex.submit(fetch, j) for j in jobs):
+                done += 1
+                if fut.result():
+                    n += 1
+                if done % 100 == 0 or done == len(jobs):
+                    print(f"  [images] {done}/{len(jobs)}  ({n} ok)")
         print(f"  [images] done: {n} downloaded, {skipped} already present -> {out_dir}")
         return n
 

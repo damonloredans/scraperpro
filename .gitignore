@@ -5,8 +5,7 @@ venv/
 *.log
 .env
 
-# scraper outputs + local scratch
-output/*.csv
-output/*.json
-output/oakley_images*/
+# scraper outputs + local scratch — NOTHING in output/ is committed
+output/
 .cache/
+*.zip
