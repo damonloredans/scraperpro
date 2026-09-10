@@ -34,12 +34,31 @@ pip install -r requirements.txt
 
 ## Usage
 
+**Interactive:** double-click **`run.bat`** — it prompts for site, format, a
+product limit (blank = all), and for Oakley whether to download + re-host images.
+
+**CLI:**
+
 ```bash
 python run.py princetontec                 # full catalogue -> output/princetontec_shopify.csv
 python run.py crispi --limit 3             # first 3 products only (smoke test)
 python run.py princetontec crispi          # both in one go
-python run.py oakleysi                     # not implemented yet (exits 1)
+python run.py crispi --format shopify      # native Shopify CSV instead of Matrixify
+python run.py oakleysi --limit 10 --images # scrape + download images (Akamai caps ~40-50 requests/IP)
+python run.py oakleysi --limit 50 --fast   # 1 request/product -> ~3x more products before the block
 ```
+
+`--fast` skips the per-colour page fetches: every colour still gets its barcode
+(it's on the main page) but colours 2+ have a generic label and no per-colour
+SKU. Testing lever only — the deliverable run uses full mode + proxies.
+
+Re-runs **overwrite** that brand's CSV; a run that scrapes 0 products (e.g. an
+Akamai block) is **not** written, so the last good file survives. `--images`
+skips files already downloaded.
+
+Every run prints elapsed time + s/product as it goes, a per-brand total on
+completion, and for Oakley an extrapolated `~N min for 1,400` so you can size the
+full job.
 
 Measured run times: **Princeton Tec 72 products ≈ 3 min**, **Crispi 13 products
 ≈ 40 s** (both network-bound, deliberately throttled). Oakley SI projected at
@@ -91,9 +110,15 @@ Recon 2026-09-10 (see `docs/quote.md` §3):
 - **Price** is an empty `<format:price/>` placeholder logged-out -> out of scope.
 - **No** SAP OCC/REST API (`/occ/v2/...` -> search page).
 
-**What works:** category discovery (48 links/page, paginates `?q=…&page=N`) and
-the PDP parser. Pulled real products end to end — title, breadcrumb -> Type, cleaned
-description + measurements, SEO description, image gallery, per-colour Sku/UPC.
+**What works:**
+- **Discovery via `/en-us/sitemap.xml`** — all **1,541 product URLs in one
+  request**, with `<lastmod>` for incremental runs. Falls back to the category
+  crawl if the sitemap is unavailable.
+- **PDP parser** — title, breadcrumb -> Type, cleaned description + measurements,
+  SEO description, image gallery, per-colour Sku/UPC. Ran end to end on real
+  products.
+- **Circuit breaker** — after 3 Akamai-blocked requests in a row it aborts in
+  ~30 s and keeps what it scraped (was: 20+ min of exponential backoff).
 
 **What's stubbed:** apparel/footwear/goggle *size* explosion (eyewear is
 one-size); colourway grouping (currently one Shopify product per style code).

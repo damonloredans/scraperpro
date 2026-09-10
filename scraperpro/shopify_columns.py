@@ -103,6 +103,19 @@ class Product:
     variants: list[Variant] = field(default_factory=list)
     images: list[str] = field(default_factory=list)   # ordered, deduped, main first
 
+    def problems(self) -> list[str]:
+        """Structural issues Shopify's importer rejects silently."""
+        out = []
+        if self.option2_name and not self.option1_name:
+            out.append("Option2 Name set but Option1 Name empty")
+        if len(self.variants) > 1:
+            keys = [(v.option1, v.option2, v.option3) for v in self.variants]
+            if len(set(keys)) != len(keys):
+                out.append(f"duplicate variant option values ({len(keys) - len(set(keys))} dupes)")
+            if self.option1_name and any(not v.option1 for v in self.variants):
+                out.append("Option1 Name set but a variant has no Option1 Value")
+        return out
+
     def rows(self) -> list[dict]:
         """Expand to Matrixify rows: product+variant+image on row 1, then one row
         per extra variant, then image-only rows for gallery overflow."""

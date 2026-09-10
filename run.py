@@ -19,6 +19,7 @@ from __future__ import annotations
 import argparse
 import os
 import sys
+import time
 
 try:  # readable brand names in the Windows console
     sys.stdout.reconfigure(encoding="utf-8")
@@ -40,6 +41,9 @@ def main(argv: list[str]) -> int:
                     help="matrixify (default, matches the sample) or shopify (native importer)")
     ap.add_argument("--images", action="store_true",
                     help="also download each product's images to output/<brand>_images/<handle>/NN.png")
+    ap.add_argument("--fast", action="store_true",
+                    help="Oakley only: 1 request per product (skip per-colour pages). "
+                         "~3x more products before Akamai blocks; other colours get barcode only, no SKU/name.")
     ap.add_argument("--out-dir", default=OUT_DIR)
     args = ap.parse_args(argv)
 
@@ -47,9 +51,12 @@ def main(argv: list[str]) -> int:
     suffix = "shopify" if args.format == "matrixify" else "shopify-native"
     os.makedirs(args.out_dir, exist_ok=True)
     rc = 0
+    run_start = time.perf_counter()
     for brand in args.brands:
         print(f"\n=== {brand} ({args.format}) ===")
-        scraper = REGISTRY[brand]()
+        t0 = time.perf_counter()
+        kw = {"fast": True} if (args.fast and brand == "oakleysi") else {}
+        scraper = REGISTRY[brand](**kw)
         try:
             products = scraper.run(limit=args.limit)
         except NotImplementedError as e:
@@ -60,6 +67,17 @@ def main(argv: list[str]) -> int:
             print("  0 products — not writing (last good file kept)")
             rc = 1
             continue
+
+        if brand == "oakleysi" and args.limit is None and len(products) < 1400:
+            print(f"  NOTE: partial run — {len(products)} of ~1,541 products "
+                  "(Akamai block or interrupt). The CSV is still written; re-run later for the rest.")
+            rc = 1
+        flagged = [(p.handle, probs) for p in products if (probs := p.problems())]
+        if flagged:
+            print(f"  ! {len(flagged)} product(s) with import problems:")
+            for handle, probs in flagged[:10]:
+                print(f"      {handle}: {'; '.join(probs)}")
+
         path = os.path.join(args.out_dir, f"{brand}_{suffix}.csv")
         n = write_csv(path, products)
         print(f"  wrote {len(products)} products / {n} rows -> {path}")
@@ -69,8 +87,18 @@ def main(argv: list[str]) -> int:
                 print(f"  --images not supported for {brand} (image URLs import directly)")
             else:
                 img_dir = os.path.join(args.out_dir, f"{brand}_images")
-                got = scraper.download_images(products, img_dir)
-                print(f"  downloaded {got} images -> {img_dir}")
+                scraper.download_images(products, img_dir)
+
+        el = time.perf_counter() - t0
+        per = el / len(products) if products else 0
+        m, s = divmod(int(el), 60)
+        print(f"  --- {brand} complete in {m}m{s:02d}s  "
+              f"({len(products)} products, {per:.1f}s/product"
+              + (f"  ->  ~{per * 1400 / 60:.0f} min for 1,400" if brand == "oakleysi" else "")
+              + ") ---")
+
+    tm, ts = divmod(int(time.perf_counter() - run_start), 60)
+    print(f"\n=== ALL DONE in {tm}m{ts:02d}s ===")
     return rc
 
 

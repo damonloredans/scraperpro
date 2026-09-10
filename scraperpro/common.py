@@ -148,6 +148,43 @@ def gtin_from_jsonld(html: str) -> dict[str, str]:
     return found
 
 
+class Progress:
+    """Elapsed / rate / ETA printer for a loop of `total` items (total optional)."""
+
+    def __init__(self, label: str, total: int | None = None) -> None:
+        self.label = label
+        self.total = total
+        self.start = time.perf_counter()
+        self.n = 0
+
+    @staticmethod
+    def _hms(s: float) -> str:
+        s = int(s)
+        return f"{s // 3600}h{s % 3600 // 60:02d}m{s % 60:02d}s" if s >= 3600 else f"{s // 60}m{s % 60:02d}s"
+
+    def tick(self, note: str = "") -> None:
+        self.n += 1
+        el = time.perf_counter() - self.start
+        rate = el / self.n
+        msg = f"  [{self.label}] {self.n:>4}"
+        if self.total:
+            msg += f"/{self.total}"
+        msg += f"  {note[:55]}"
+        tail = f"{self._hms(el)} elapsed, {rate:.1f}s/item"
+        if self.total and self.n < self.total:
+            tail += f", ~{self._hms(rate * (self.total - self.n))} left"
+        print(f"{msg}   ({tail})")
+
+    def done(self) -> float:
+        el = time.perf_counter() - self.start
+        rate = el / self.n if self.n else 0
+        print(f"  [{self.label}] done: {self.n} items in {self._hms(el)}  "
+              f"({rate:.1f}s/item"
+              + (f"  ->  ~{self._hms(rate * 1400)} for 1,400" if self.label == "Oakley SI" else "")
+              + ")")
+        return el
+
+
 def grams(value, unit: str = "kg") -> int:
     """Normalise a weight to integer grams."""
     try:

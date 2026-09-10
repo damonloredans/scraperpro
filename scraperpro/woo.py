@@ -300,11 +300,13 @@ class WooScraper:
 
     def run(self, limit: int | None = None) -> list[Product]:
         products: list[Product] = []
+        prog = common.Progress(self.vendor)
         for i, raw in enumerate(self.iter_parent_products()):
             if limit and i >= limit:
                 break
             products.append(self.build_product(raw))
-            print(f"  [{self.vendor}] {i + 1:>4}  {raw.get('name', '')[:60]}")
+            prog.tick(raw.get("name", ""))
+        prog.done()
         return products
 
 

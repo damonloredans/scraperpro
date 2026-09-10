@@ -75,6 +75,7 @@ Loaded several live pages. What we confirmed:
 | Per-variant barcodes? | **Yes, logged-out.** Each PDP embeds `utag_data.Products = {<UPC>: {Sku, FrameColor, LensColor, LensTechnology, LensType, Category, ModelName, …}}` — parsed with a brace-matcher (JS object literal, unquoted numeric keys). |
 | Price? | **No.** Empty Hybris `<format:price/>` placeholder for logged-out users. Confirmed login-only. |
 | Is there a REST/JSON API (SAP OCC)? | **No.** `/occ/v2/…` falls through to the site search page. HTML scraping only. |
+| Product discovery | **`/en-us/sitemap.xml`** lists all **1,541 product URLs in one request** (+ `<lastmod>` for incremental runs) — replaces a ~160-request category crawl. |
 | JS rendering needed? | **No** for the core data — pages are server-side rendered. |
 | Bot protection? | **Yes — Akamai.** `requests` -> 403. `curl_cffi` (Chrome TLS impersonation) -> clean 200s + full data for ~40–50 requests, then a JS-challenge stub. Sustained crawling needs cookie-seeding / proxies / an unblocker — see Risk 2. |
 | Does the parser actually work? | **Yes.** Built and ran end to end during recon — pulled real products (Standard Issue Holbrook USA Flag Collection, Meta Vanguard) with title, breadcrumb -> Type, cleaned description + measurements, SEO text, 10–15 images, per-colour Sku/UPC — before hitting the volume block. |
@@ -271,8 +272,8 @@ days (batches, not flat-out) — that overlaps weeks 2–3 and isn't hands-on ti
    separate product pages. Default = mirror the source (one Shopify product per
    colourway). Grouping them into one product with a Colour option adds ~6–10
    hrs. Confirm preference.
-7. **Row counts are estimates** from category headers. True variant count (and
-   Oakley QA effort) is known only after crawl 1.
+7. **Product count is now known: 1,541** (from the sitemap). True *variant*
+   count (and Oakley QA effort) is known only after crawl 1.
 8. **Descriptions**: source sites use heavy page-builder HTML. Sample keeps raw
    markup; we default to *cleaned* (strip wrapper `<div>`/`<style>`, keep
    headings/lists/copy). Confirm cleaned vs. raw.

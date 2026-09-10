@@ -30,6 +30,7 @@ import time
 from bs4 import BeautifulSoup
 
 from .. import common
+from ..fetch import BlockedError
 from ..shopify_columns import Product, Variant
 
 BASE = "https://www.oakleysi.com"
@@ -52,16 +53,47 @@ _MAX_COLOURS = 12
 class OakleySIScraper:
     vendor = "Oakley SI"
 
-    def __init__(self, fetcher=None, throttle: float = 1.5) -> None:
+    def __init__(self, fetcher=None, throttle: float = 1.5, fast: bool = False) -> None:
         if fetcher is None:
             from ..fetch import CurlCffiFetcher
             fetcher = CurlCffiFetcher(throttle=throttle)
         self.fetch = fetcher
         self.handles = common.HandlePool()
+        # fast mode: 1 page load per product (no per-colour ?variant= fetches).
+        # Other colours get their barcode from the main page but no SKU / colour name.
+        self.fast = fast
 
     # ------------------------------------------------------------------ crawl
+    SITEMAP = f"{BASE}/en-us/sitemap.xml"
+
+    def discover_from_sitemap(self, since: str | None = None) -> list[str]:
+        """All product URLs in ONE request. `since` = ISO date; only URLs with a
+        newer <lastmod> are returned (incremental crawl)."""
+        xml = self.fetch.get(self.SITEMAP, expect="<loc>")
+        urls = []
+        for block in re.findall(r"<url>(.*?)</url>", xml, re.S):
+            loc = re.search(r"<loc>([^<]+)</loc>", block)
+            if not loc or "/product/" not in loc.group(1):
+                continue
+            if since:
+                lm = re.search(r"<lastmod>([^<]+)</lastmod>", block)
+                if lm and lm.group(1)[:10] < since:
+                    continue
+            urls.append(loc.group(1).strip())
+        print(f"  [{self.vendor}] sitemap: {len(urls)} product URLs"
+              + (f" changed since {since}" if since else ""))
+        return urls
+
     def discover_product_urls(self, categories=CATEGORIES, max_pages: int = 60,
-                              stop_at: int | None = None) -> list[str]:
+                              stop_at: int | None = None, use_sitemap: bool = True,
+                              since: str | None = None) -> list[str]:
+        if use_sitemap:
+            try:
+                urls = self.discover_from_sitemap(since)
+                return urls[:stop_at] if stop_at else urls
+            except RuntimeError as e:
+                print(f"  [{self.vendor}] sitemap failed ({e}); falling back to category crawl")
+
         seen: dict[str, str] = {}          # style code -> full URL
         for cat in categories:
             if stop_at and len(seen) >= stop_at:
@@ -74,6 +106,9 @@ class OakleySIScraper:
                 url = f"{BASE}{cat}{sep}q=%3AoakleyRelevanceSort&page={page}"
                 try:
                     html = self.fetch.get(url, expect="/en-us/product/")
+                except BlockedError as e:
+                    print(f"    !! {e}")
+                    return list(seen.values())
                 except RuntimeError as e:
                     print(f"    ! {url}: {e}")
                     break
@@ -117,62 +152,88 @@ class OakleySIScraper:
         current = _utag_products(html)                    # {upc: {...}} for the loaded colour
         by_upc = dict(current)
         for upc in colour_upcs:
-            if upc in by_upc:
+            if upc in by_upc or len(by_upc) >= _MAX_COLOURS:
                 continue
-            if len(by_upc) >= _MAX_COLOURS:
-                break
+            if self.fast:
+                by_upc[upc] = {}                          # barcode only, no extra page load
+                continue
             try:
                 vhtml = self.fetch.get(f"{BASE}/en-us/product/{style}?variant={upc}",
                                        expect="pdp-hero-name")
                 by_upc.update(_utag_products(vhtml))
+            except BlockedError:
+                raise
             except RuntimeError:
-                by_upc.setdefault(upc, {})
+                by_upc.setdefault(upc, {})   # skip this colour, keep the product
 
         images = _images(soup)
-        variants: list[Variant] = []
+
+        # one entry per distinct SKU (the ?variant= pages sometimes repeat a colour)
+        seen_sku: dict[str, dict] = {}
         for upc, d in by_upc.items():
-            colour = d.get("FrameColor") or d.get("LensColor") or ""
-            variants.append(Variant(
-                option1=colour or "Default Title",
-                option2="",                              # TODO apparel/footwear sizes
+            sku = d.get("Sku") or str(upc)
+            seen_sku.setdefault(sku, {**d, "_upc": upc})
+        recs = list(seen_sku.values())
+
+        labels = _colour_labels(recs)                     # unique Option1 values
+        variants = [
+            Variant(
+                option1=labels[i],
+                option2="",                               # TODO apparel/footwear sizes
                 sku=d.get("Sku") or style,
-                grams=0,                                  # not on PDP
-                barcode=str(upc),
-                price="",                                 # login-gated
+                grams=0,                                   # not on the PDP
+                barcode=str(d.get("_upc", "")),
+                price="",                                  # login-gated
                 image=_first_image_for(images, d.get("Sku", "")),
-            ))
+            )
+            for i, d in enumerate(recs)
+        ]
         if not variants:
             variants.append(Variant(option1="Default Title", sku=style, barcode=""))
 
+        has_colour = len(variants) > 1 or (variants and variants[0].option1 != "Default Title")
         return Product(
             handle=handle,
             title=title,
             body_html=body_html,
             vendor=self.vendor,
-            seo_title=f"{title}".strip(),
+            seo_title=title,
             seo_description=seo_desc,
             product_type=product_type,
-            option1_name="Colour" if any(v.option1 != "Default Title" for v in variants) else "",
+            option1_name="Colour" if has_colour else "",
             variants=variants,
             images=images,
         )
 
     def run(self, limit: int | None = None) -> list[Product]:
-        urls = self.discover_product_urls(stop_at=limit)
+        try:
+            urls = self.discover_product_urls(stop_at=limit)
+        except BlockedError as e:
+            print(f"  !! {e}")
+            return []
         print(f"  [{self.vendor}] discovered {len(urls)} products")
         if limit:
             urls = urls[:limit]
         out: list[Product] = []
-        for i, u in enumerate(urls, 1):
+        prog = common.Progress(self.vendor, total=len(urls))
+        for u in urls:
             try:
                 p = self.parse_product(u)
+            except BlockedError as e:
+                print(f"\n  !! {e}\n  stopping here — keeping the {len(out)} products scraped so far.")
+                break
+            except KeyboardInterrupt:
+                print(f"\n  interrupted — keeping the {len(out)} products scraped so far.")
+                break
             except RuntimeError as e:
                 print(f"    ! {u}: {e}")
+                prog.tick("(skipped)")
                 continue
             if p:
                 out.append(p)
-                print(f"  [{self.vendor}] {i:>4}  {p.title[:55]}  ({len(p.variants)} colours)")
+                prog.tick(f"{p.title}  ({len(p.variants)} col)")
             time.sleep(0.2)
+        prog.done()
         return out
 
     def download_images(self, products: list[Product], out_dir: str) -> int:
@@ -191,13 +252,16 @@ class OakleySIScraper:
 
         sess = requests.Session()
         sess.headers["Accept"] = "image/*"          # not "image/avif" -> CDN returns origin PNG
-        n = 0
-        for p in products:
+        total = sum(len(dict.fromkeys(p.images)) for p in products)
+        print(f"  [images] downloading up to {total} files for {len(products)} products...")
+        n = skipped = 0
+        for pi, p in enumerate(products, 1):
             pdir = os.path.join(out_dir, p.handle)
             os.makedirs(pdir, exist_ok=True)
             for idx, url in enumerate(dict.fromkeys(p.images), 1):
                 dest = os.path.join(pdir, f"{idx:02d}.png")
                 if os.path.exists(dest):
+                    skipped += 1
                     continue
                 try:
                     r = sess.get(url, timeout=30)
@@ -209,6 +273,8 @@ class OakleySIScraper:
                     fh.write(r.content)
                 n += 1
                 time.sleep(0.1)
+            print(f"  [images] {pi}/{len(products)}  {p.handle[:45]}  ({n} new, {skipped} already had)")
+        print(f"  [images] done: {n} downloaded, {skipped} already present -> {out_dir}")
         return n
 
 
@@ -332,6 +398,42 @@ def _images(soup: BeautifulSoup) -> list[str]:
         if "prod-onecp-record-files" in src:
             out.append(src.split("?")[0] + IMG_ORIGIN_QS)
     return list(dict.fromkeys(out))
+
+
+def _colour_labels(recs: list[dict]) -> list[str]:
+    """Unique Option1 values for a product's variants. Shopify rejects a product
+    whose variants share an option value, and Oakley's `FrameColor` is often the
+    same across a model's variants (e.g. a 'USA Flag Collection' is all
+    'Matte Black' with different emblem/lens treatments). Disambiguate with
+    LensColor, then the SKU's colour code, then an index."""
+    if len(recs) == 1:
+        base = recs[0].get("FrameColor") or recs[0].get("LensColor") or ""
+        return [base or "Default Title"]
+
+    labels = []
+    for d in recs:
+        parts = [d.get("FrameColor", "").strip(), d.get("LensColor", "").strip()]
+        label = " / ".join(p for p in parts if p)
+        labels.append(label)
+
+    if len(set(labels)) == len(labels) and all(labels):
+        return labels
+
+    out, used = [], set()
+    for d, label in zip(recs, labels):
+        cand = label or "Colour"
+        sku = d.get("Sku") or ""
+        code = sku.rsplit("-", 1)[-1] if "-" in sku else ""
+        if cand in used and code:
+            cand = f"{cand} ({code})"
+        i = 2
+        base = cand
+        while cand in used:
+            cand = f"{base} ({i})"
+            i += 1
+        used.add(cand)
+        out.append(cand)
+    return out
 
 
 def _first_image_for(images: list[str], sku: str) -> str:
