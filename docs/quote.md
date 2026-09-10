@@ -24,7 +24,14 @@ sheet — see `docs/format-mapping.md`):
 
 Per product: handle, title, vendor, description (HTML), SEO title/description,
 options (colour / size), one row per variant, SKU, barcode (where public),
-weight in grams, image URLs (main + gallery). Output as **draft** products.
+weight in grams, images (main + gallery). Output as **draft** products.
+
+**Scrape-only engagement.** We deliver the import files (CSV, both Matrixify and
+native-Shopify layouts) plus the re-hosted images. The client's team runs the
+Shopify import — we have no access to their store. Our own-store import testing
+(2026-09-10) already caught and fixed three issues that would otherwise have hit
+their team: Crispi importing 0 products (option ordering), Oakley images failing
+(AVIF), and duplicated measurement text.
 
 **Pricing.** The sample sheet ships with `Variant Price` blank. We now capture
 what each source site *shows*:
@@ -108,7 +115,7 @@ for the fix and its pass-through cost.
 | Category crawler (all categories, pagination, colourway URLs) | 5 | 6 |
 | PDP parser (name, desc, features, measurements, colours, sizes, UPCs) — **built + tested** | 9 | 10 |
 | Variant explosion (colour × size) + colourway grouping decision | 4 | 4 |
-| **Image rehosting** — download ~14k images, bulk-upload to Shopify Files or attach via Admin API, rewrite `Image Src` (Oakley's CDN serves AVIF; Shopify rejects it and won't take the query-string workaround — see Risk 15) | 6 | 6 |
+| **Image re-hosting** — download ~14k images, PNG->JPEG, upload to our Cloudflare R2 bucket, rewrite `Image Src` (Oakley's CDN serves AVIF; Shopify rejects it — see Risk 15) | 6 | 6 |
 | Transform to Shopify template | 4 | 4 |
 | Spec/description cleanup + SEO fields | 3 | 3 |
 | QA at scale (validation script + sampling ~1,400 products) | 8 | 8 |
@@ -287,29 +294,36 @@ days (batches, not flat-out) — that overlaps weeks 2–3 and isn't hands-on ti
     reseller/distributor arrangement with these brands and the right to list
     their catalogues and use their photos/copy. Get it in writing + an indemnity
     clause (see Risk 3). Client's responsibility.
-15. **Oakley images must be rehosted.** `assets*.oakley.com` serves AVIF (via
-    Accept negotiation); Shopify rejects AVIF and won't honour the query-string
-    workaround through the CSV importer. So Oakley images have to be downloaded
-    (~14k of them) and either bulk-uploaded to Shopify Files or attached via the
-    Admin API at product-create time, with the CSV pointing at Shopify URLs. The
-    scraper's `download_images()` handles the download; the upload/rewrite is
-    costed in §4. **Woo (Princeton Tec, Crispi) images import fine by URL.**
-16. **Import method.** The sample is a **Matrixify** sheet — imports via the
-    Matrixify app. `run.py --format shopify` also emits a native Shopify CSV for
-    the built-in importer. Live testing: Princeton Tec imports clean; the Crispi
-    "0 products" issue (options) and Oakley images (above) are handled.
+15. **Oakley images must be re-hosted (Option A — our bucket).**
+    `assets*.oakley.com` serves AVIF, which Shopify rejects; the query-string
+    workaround doesn't survive the CSV importer, and browser-downloaded copies
+    are AVIF too. Since this is scrape-only (no access to the client's Shopify),
+    the pipeline is: `download_images()` pulls origin PNGs -> convert to flattened
+    JPEG (~1 MB -> ~80 KB) -> upload to a **Cloudflare R2** bucket we host ->
+    CSV `Image Src` points at the public bucket URLs. Verified end to end on a
+    sample. ~14 k images, ~1–2 GB — **free tier, $0**. The bucket stays up for
+    the import window (~2–4 weeks) then we delete it. Costed at ~6 hrs in §4.
+    **Woo (Princeton Tec, Crispi) images import fine by URL — no re-hosting.**
+16. **Import method — we deliver both layouts.** The sample is a **Matrixify**
+    sheet (needs the Matrixify app). We also ship a **native Shopify CSV**
+    (`run.py --format shopify`) for the built-in importer — the client's team
+    picks. Live testing: Princeton Tec imports clean; Crispi "0 products"
+    (options) and Oakley images (Risk 15) are fixed.
 17. **One-time capture.** Ongoing sync quoted separately.
 
 ---
 
 ## 8. To start
 
-- Confirm the sample sheet is final (and that it's imported via **Matrixify**,
-  not the native Shopify importer).
+- Confirm the sample sheet is final, and whether the client imports via
+  **Matrixify** or the native importer (we deliver both layouts).
 - **Crispi**: the AU site has only 13 products — is that the target, or the full
   global Crispi range (different site)? (Risk 4)
 - Cleaned vs. raw descriptions (Risk 8).
 - Oakley: mirror source vs. group colourways (Risk 6).
+- **Oakley image bucket** — one date from the client: when will their import be
+  finished, so we know how long to keep the image bucket live (Risk 15). We set
+  up the Cloudflare R2 bucket + token ourselves; nothing needed from them.
 - **Pricing** — pick one:
   1. Leave `Variant Price` blank, set all pricing in Shopify after import.
   2. Give us a **margin formula** to apply to the source RRP we capture

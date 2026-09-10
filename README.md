@@ -4,9 +4,10 @@ Scrapes a brand's public catalogue and writes a **Shopify product import sheet**
 in the Matrixify-style layout from `vertx_product_submission_sample.csv`
 (one row per variant, product fields on the first row, gallery rows after).
 
-Job: **Broad Arrow Tactical** (broadarrowtactical.com.au) — migrate Oakley SI,
-Princeton Tec and Crispi catalogues into Shopify. See `docs/quote.md` for scope,
-pricing and risks.
+Job: **Broad Arrow Tactical** (broadarrowtactical.com.au) — scrape the Oakley SI,
+Princeton Tec and Crispi catalogues into Shopify import sheets. **Scrape-only**:
+we deliver the CSVs + re-hosted images; the client's team runs the import (no
+access to their Shopify). See `docs/quote.md` for scope, pricing and risks.
 
 ## Brands
 
@@ -156,17 +157,46 @@ Scope / pricing / risks: **`docs/quote.md`**.
   size-only boot is `Option1 Name = Size`. Also dropped the sample's stray
   trailing space in `"Size "`.
 - **Oakley images: "Media processing failed"** — `assets*.oakley.com` does
-  Accept-header negotiation and serves **AVIF**, which Shopify rejects. Forcing
-  the origin PNG via a query param works from a browser but **not** through
-  Shopify's CSV importer (it drops the query string, and/or Akamai blocks
-  Shopify's fetcher IPs). Oakley images must be **downloaded and rehosted**:
-  `OakleySIScraper.download_images(products, out_dir)` saves origin PNGs; then
-  bulk-upload to Shopify Files or attach them via the Admin API when creating
-  the product, and swap the CSV `Image Src` for the Shopify URLs. Woo image URLs
-  import fine as-is.
+  Accept-header negotiation and serves **AVIF**, which Shopify rejects. Any
+  query param forces the origin PNG, but that doesn't survive Shopify's CSV
+  importer (it drops the query, and/or Akamai blocks Shopify's fetcher IPs).
+  Downloading Oakley images through a browser also gives AVIF-with-a-`.png`-name,
+  which Shopify Files rejects too. **Oakley images must be re-hosted** — see the
+  next section. Verified working: origin PNG -> flatten to white JPEG -> serve
+  from our own bucket -> Shopify imports fine. Woo image URLs import as-is.
 - **Oakley description had duplicate measurements** — the `.singleContent` block
   already contains the frame/lens measurements; **fixed** — we no longer append
   the separate `.sizeText` block when they're already present.
+
+## Oakley image re-hosting (Option A — our bucket)
+
+This is a **scrape-only** engagement: we deliver CSVs + images; the client's team
+runs the Shopify import. So we can't put images in *their* Shopify Files. Instead
+the `Image Src` URLs in the delivered CSV point at a bucket **we** host for the
+import window, then tear down.
+
+Pipeline (the ~6 hr Oakley "image rehosting" line in the quote):
+
+1. `OakleySIScraper.download_images(products, out_dir)` — pulls every image as
+   origin PNG (sends a plain `Accept` header so the CDN doesn't return AVIF).
+2. Convert PNG -> JPEG, flatten transparency onto white, cap at ~1600 px,
+   q≈85 (drops ~1 MB PNGs to ~80 KB).
+3. Upload to **Cloudflare R2** (S3-compatible, `boto3`) with key
+   `oakleysi/<handle>/<NN>.jpg`.
+4. Rewrite the CSV `Image Src` / `Variant Image` to the public bucket URLs
+   (`https://pub-<hash>.r2.dev/oakleysi/<handle>/<NN>.jpg`).
+
+What we need to set this up (all self-serve, nothing from the client):
+
+- A Cloudflare account, R2 enabled (free tier: 10 GB storage, 1 M writes/mo —
+  the whole catalogue is ~1–2 GB / ~14 k files, so **$0**).
+- An R2 API token (Object Read & Write) -> Account ID + Access Key + Secret.
+- The bucket set to **public** (r2.dev public URL, or a custom domain).
+- One date from the client: **when the import is done**, so we can delete the
+  bucket. Assume the URLs must stay live ~2–4 weeks.
+
+Equivalents if not Cloudflare: Backblaze B2 (10 GB free), AWS S3 (pennies),
+DigitalOcean Spaces ($5/mo). Same `boto3` code.
 
 ## Other known limitations
 

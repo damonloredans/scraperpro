@@ -1,5 +1,13 @@
 requests>=2.31
 beautifulsoup4>=4.12
 lxml>=5.0
-# Oakley SI (bot-protected, JS) — used by scraperpro/sites/oakleysi.py
-# playwright>=1.44   ; run `playwright install chromium` after installing
+
+# Oakley SI (bot-protected page fetches) — scraperpro/fetch.py
+curl_cffi>=0.7
+
+# Oakley SI image re-hosting (Option A) — download + convert + upload to a bucket
+Pillow>=10.0
+boto3>=1.34          # S3-compatible client for Cloudflare R2 / B2 / S3
+
+# Oakley SI browser fallback, only if curl_cffi gets challenged
+# playwright>=1.44   ; then: playwright install chromium
