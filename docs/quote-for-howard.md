@@ -42,8 +42,9 @@ A working codebase is already in place, not starting from zero:
 - Confirmed the Oakley catalogue is **1,541 products**
 
 Remaining: Oakley apparel/footwear size variants, category and colour-name
-cleanup, per-variant SKUs for Princeton Tec / Crispi, the full catalogue run,
-and QA across all 1,541 products.
+cleanup, finishing Princeton Tec's per-size product codes, the full catalogue
+run, and QA across all 1,541 products. (Crispi and Oakley clothing/footwear
+don't publish a separate code per size — see question 8.)
 
 ---
 
@@ -140,3 +141,18 @@ One revision round per brand is included.
      control.
    A is fine for most cases; pick B or C if you expect to re-run the import or
    want the images on your own infra.
+
+8. **Product codes / SKUs.** These vary by brand:
+   - **Princeton Tec** publishes a real SKU for each size — those come through.
+   - **Crispi** only publishes one code per boot *model* (e.g. `CR92H` for the
+     Hunter GTX, all sizes), and two models have no code at all. There is no
+     per-size code to capture — it doesn't exist on their site.
+   - **Oakley** publishes a code per *colour* (not per size) for clothing and
+     footwear; sunglasses have a code per colour as well. Every size does have a
+     barcode, which we capture.
+
+   So for Crispi and Oakley clothing/footwear, how do you want the SKU column
+   filled? **(a)** repeat the model/colour code on every size row (default);
+   **(b)** we generate a size code by pattern, e.g. `CR92H-42`, `CR92H-43`…;
+   **(c)** leave it blank and your team assigns SKUs on your side. Most Shopify
+   setups do (c) or (a).

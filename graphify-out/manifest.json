@@ -54,10 +54,10 @@
     "semantic_hash": "c499f23eafa288c3dc43a0df24493419"
   },
   "scraperpro/sites/oakleysi.py": {
-    "mtime": 1789032391.9040034,
-    "seen": 1789043173.365176,
-    "ast_hash": "428ebc510b10c68323f32a376a8fe602",
-    "semantic_hash": "428ebc510b10c68323f32a376a8fe602"
+    "mtime": 1789044818.2478478,
+    "seen": 1789059487.930923,
+    "ast_hash": "1841a25190892293afa0cff039de3486",
+    "semantic_hash": "1841a25190892293afa0cff039de3486"
   },
   "scraperpro/sites/princetontec.py": {
     "mtime": 1789017308.610959,
@@ -72,10 +72,10 @@
     "semantic_hash": "60c7f4eedef26e2341973d4cc3a9e6eb"
   },
   "tests/test_oakley_parser.py": {
-    "mtime": 1789022656.266621,
-    "seen": 1789043173.365178,
-    "ast_hash": "a027d7a49eb1573face920097fc59e9a",
-    "semantic_hash": "a027d7a49eb1573face920097fc59e9a"
+    "mtime": 1789044406.2155583,
+    "seen": 1789059487.9309273,
+    "ast_hash": "db3ced7aceb6c921dffbfbbdbc84dee3",
+    "semantic_hash": "db3ced7aceb6c921dffbfbbdbc84dee3"
   },
   "tools/rehost_images.py": {
     "mtime": 1789031288.330917,
@@ -90,10 +90,10 @@
     "semantic_hash": "a4484b2b5ec86c0f6eb2d526864a73f9"
   },
   "README.md": {
-    "mtime": 1789031825.9845645,
-    "seen": 1789043173.3651803,
-    "ast_hash": "816d0354729d5ebd2c71f800c8b9e1ab",
-    "semantic_hash": "816d0354729d5ebd2c71f800c8b9e1ab"
+    "mtime": 1789045013.4792128,
+    "seen": 1789059487.9309306,
+    "ast_hash": "efe02e94d4649edbd38bf4675e8432ff",
+    "semantic_hash": "efe02e94d4649edbd38bf4675e8432ff"
   },
   "docs/format-mapping.md": {
     "mtime": 1789021709.564281,
@@ -102,16 +102,16 @@
     "semantic_hash": "52b38ad8ddc11eefe19345575f4a95ab"
   },
   "docs/quote-for-howard.md": {
-    "mtime": 1789032493.0210223,
-    "seen": 1789043173.3651817,
-    "ast_hash": "6f1c42443b2a935ec81e213f59fb51df",
-    "semantic_hash": "6f1c42443b2a935ec81e213f59fb51df"
+    "mtime": 1789044002.1184292,
+    "seen": 1789059487.9309316,
+    "ast_hash": "4d806446d9ec1bf4c91ff833e2ad8459",
+    "semantic_hash": "4d806446d9ec1bf4c91ff833e2ad8459"
   },
   "docs/quote.md": {
-    "mtime": 1789032132.488907,
-    "seen": 1789043173.3651822,
-    "ast_hash": "5326a9184c8b954a47536f554293d09d",
-    "semantic_hash": "5326a9184c8b954a47536f554293d09d"
+    "mtime": 1789045023.4956827,
+    "seen": 1789059487.9309323,
+    "ast_hash": "ec94e1a60f07554b6cdcfcbc6db0ba1e",
+    "semantic_hash": "ec94e1a60f07554b6cdcfcbc6db0ba1e"
   },
   "requirements.txt": {
     "mtime": 1789025793.9147549,
@@ -130,5 +130,11 @@
     "seen": 1789043173.3651843,
     "ast_hash": "699ac862c255ec43d0589dd6a56f8780",
     "semantic_hash": "699ac862c255ec43d0589dd6a56f8780"
+  },
+  "tests/fixtures/oakleysi_pdp_boot_11190.html": {
+    "mtime": 1789044326.1748767,
+    "seen": 1789059487.9309335,
+    "ast_hash": "a1ceb29051b453470d7029787af3fb36",
+    "semantic_hash": "a1ceb29051b453470d7029787af3fb36"
   }
 }

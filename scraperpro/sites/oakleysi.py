@@ -6,7 +6,8 @@ Recon 2026-09-10 (see docs/quote.md §3). Key facts the code below relies on:
   (curl_cffi) gets 200s. See scraperpro/fetch.py.
 * Product pages are server-side rendered. Per page we read:
     - <h1>                                    -> title
-    - .breadcrumb a                           -> Type / category
+    - utag_data.product_category              -> Type (breadcrumb is unreliable —
+      many products route through promo landing paths; see _product_type)
     - .singleContent blocks                   -> description + feature bullets
     - .sizeText parents                       -> frame/lens measurements
     - inline `utag_data.Products = {<UPC>:{ Sku, FrameColor, LensColor,
@@ -154,9 +155,7 @@ class OakleySIScraper:
         title = f"{self.vendor} {name}".strip()
         handle = self.handles.take(f"{style} {name}")
 
-        crumbs = [a.get_text(strip=True) for a in soup.select(".breadcrumb a")]
-        crumbs = [c for c in crumbs if c.lower() != "home"]
-        product_type = crumbs[1] if len(crumbs) > 1 else (crumbs[0] if crumbs else "")
+        product_type = _product_type(soup, html)
 
         body_html = _description(soup)
         seo_desc = _meta(soup, "description") or common.plain_text(body_html)[:320]
@@ -388,6 +387,108 @@ def _utag_products(html: str) -> dict:
         if recs:
             return recs
     return {}
+
+
+def _utag_value(html: str, key: str) -> str:
+    """First string value of a scalar/array field in the inline `var utag_data =
+    {...}` literal (e.g. `product_category`, `product_size`)."""
+    m = re.search(r"var utag_data\s*=\s*\{(.*?)\};", html, re.S)
+    blob = m.group(1) if m else html
+    m = re.search(rf'"{re.escape(key)}"\s*:\s*(\[[^\]]*\]|"[^"]*")', blob)
+    if not m:
+        return ""
+    vals = re.findall(r'"([^"]*)"', m.group(1))
+    return vals[0].strip() if vals else ""
+
+
+# `utag_data.product_category` is a stable taxonomy code (`osi_ew_sun_ond_bs`,
+# `oo_afa_foot_boot`) that survives promo breadcrumbs like
+# "Holiday Gifts for Tactical Missions". We map the most specific *known* segment
+# to a Shopify Type; unknown segments (lens tech, marketing tags such as
+# `lifestyle` / `bs`) are skipped so the category level wins. Extend as new codes
+# surface in QA — an unmapped code just falls through to the breadcrumb.
+_CATEGORY_SEGMENTS = {
+    # eyewear
+    "sun": "Sunglasses", "sunglasses": "Sunglasses",
+    "eye": "Eyeglasses", "eyeglasses": "Eyeglasses", "eyegl": "Eyeglasses",
+    "rx": "Eyeglasses", "prescription": "Eyeglasses",
+    "goggle": "Goggles", "goggles": "Goggles", "gog": "Goggles", "ggl": "Goggles",
+    "lens": "Replacement Lenses", "lenses": "Replacement Lenses",
+    "replens": "Replacement Lenses",
+    # apparel — topwear
+    "topw": "Topwear", "botw": "Bottomwear",
+    "tshirt": "T-Shirts", "tshirts": "T-Shirts", "tee": "T-Shirts", "tsh": "T-Shirts",
+    "polo": "Polos", "polos": "Polos",
+    "hod": "Hoodies & Sweatshirts", "swea": "Hoodies & Sweatshirts",
+    "hoodie": "Hoodies & Sweatshirts", "sweat": "Hoodies & Sweatshirts",
+    "fleece": "Fleece",
+    "jacket": "Jackets", "jkt": "Jackets", "outer": "Jackets", "jck": "Jackets",
+    "shirt": "Shirts", "shirts": "Shirts", "sh-ls": "Shirts", "sh-ss": "Shirts",
+    "vest": "Vests",
+    # apparel — bottomwear
+    "pant": "Pants", "pants": "Pants", "pnt": "Pants",
+    "short": "Shorts", "shorts": "Shorts", "shrt": "Shorts",
+    # footwear
+    "boot": "Boots", "boots": "Boots", "shoe": "Shoes", "shoes": "Shoes",
+    "sand": "Sandals", "sandal": "Sandals",
+    # accessories
+    "headw": "Headwear", "hw": "Headwear", "headwear": "Headwear", "hat": "Headwear",
+    "cap": "Headwear", "beanie": "Headwear",
+    "bag": "Bags", "bags": "Bags", "pack": "Bags", "backpack": "Bags",
+    "glove": "Gloves", "gloves": "Gloves", "glv": "Gloves",
+    "sock": "Socks", "socks": "Socks", "belt": "Belts", "belts": "Belts",
+    "watch": "Watches", "watches": "Watches",
+    "patch": "Patches", "sticker": "Stickers",
+    # dept-level fallbacks (used only if no more specific segment matched)
+    "app": "Apparel", "apparel": "Apparel",
+    "foot": "Footwear", "footwear": "Footwear",
+    "acc": "Accessories", "accessories": "Accessories",
+    "ew": "Eyewear", "eyewear": "Eyewear",
+}
+_DEPT_SEGMENTS = {"app", "apparel", "foot", "footwear", "acc", "accessories",
+                  "ew", "eyewear", "afa"}
+_PROMO_CRUMB_TERMS = ("landing", "gift", "holiday", "guide", "collection",
+                      "new arrival", "best seller", "sale", "featured", "shop ",
+                      "essentials", "top performing", "deal")
+# Oakley prefixes some leaf segments with a family marker (`ff-sand`, `sh-ls`).
+_SEG_PREFIXES = ("ff", "fa", "os", "oo")
+
+
+def _type_from_code(code: str) -> str:
+    raw = [s for s in re.split(r"[_/]", code.lower()) if s]
+    if raw and raw[0] in ("oo", "osi", "o"):
+        raw = raw[1:]
+    # expand `ff-sand` -> ff, sand ; keep the compound too in case it's a key
+    segs = []
+    for s in raw:
+        segs.append(s)
+        if "-" in s:
+            parts = s.split("-")
+            segs += [p for p in parts if p and p not in _SEG_PREFIXES]
+    specific = [s for s in segs if s in _CATEGORY_SEGMENTS and s not in _DEPT_SEGMENTS]
+    if specific:
+        return _CATEGORY_SEGMENTS[specific[-1]]
+    dept = [s for s in segs if s in _CATEGORY_SEGMENTS]
+    return _CATEGORY_SEGMENTS[dept[-1]] if dept else ""
+
+
+def _product_type(soup: BeautifulSoup, html: str) -> str:
+    """Shopify `Type`. The breadcrumb is unreliable — Oakley routes many products
+    through promo landing paths ("Holiday Gifts for Tactical Missions") — so the
+    taxonomy code wins, then the apparel size widget's human label, then a
+    promo-filtered breadcrumb."""
+    t = _type_from_code(_utag_value(html, "product_category"))
+    if t:
+        return t
+    el = soup.select_one("[data-sizecategory]")
+    sc = (el.get("data-sizecategory") or "").split("/")[-1].strip() if el else ""
+    if sc:
+        return sc.title() if sc.islower() else sc
+    crumbs = [a.get_text(strip=True) for a in soup.select(".breadcrumb a")]
+    crumbs = [c for c in crumbs if c.lower() != "home"]
+    if crumbs and not any(term in c.lower() for c in crumbs for term in _PROMO_CRUMB_TERMS):
+        return crumbs[1] if len(crumbs) > 1 else crumbs[0]
+    return ""
 
 
 def _description(soup: BeautifulSoup) -> str:

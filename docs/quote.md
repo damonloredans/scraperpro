@@ -54,10 +54,10 @@ Roughly **32 hours in**. A working codebase (~1,800 lines) — not slideware:
 |-------|--------|
 | Reusable framework — fetcher / discovery / transform / image pipeline / two output formats / interactive `run.bat` | ✅ |
 | **Princeton Tec** scraper | ✅ 72 products, USD prices, imports clean |
-| **Crispi** scraper | ✅ 13 products, imports clean (per-size SKUs pending — see Risk 9) |
+| **Crispi** scraper | ✅ 13 products, imports clean. Per-size SKUs don't exist at source (Risk 9) — model-level SKU only, a client decision not a build task |
 | **Oakley — discovery** | ✅ sitemap, all 1,541 URLs in **one request** (was a ~160-request crawl) |
 | **Oakley — anti-bot** | ✅ ScraperAPI, tested end to end — **1 credit / request**, full catalogue ≈ 1,542 credits = **within the free trial**. Circuit breaker + partial-write for any hiccup. |
-| **Oakley — PDP parser** | ✅ title, breadcrumb, cleaned description + measurements, SEO text, images, per-colour SKU + barcode. **Proven in a live Shopify import.** |
+| **Oakley — PDP parser** | ✅ title, category/Type (from the stable taxonomy code, not the promo breadcrumb), cleaned description + measurements, SEO text, images, per-colour SKU + barcode. **Proven in a live Shopify import.** |
 | **Oakley — image re-hosting** | ✅ download (parallel) -> JPEG -> our Cloudflare R2 bucket -> rewrite `Image Src`. Proven in a live Shopify import. **$0** (R2 free tier). |
 
 **The three things that could have blown the timeline — Akamai, image hosting,
@@ -70,8 +70,8 @@ and product discovery — are done.** What remains is catalogue-scale build and 
 | Task | Hrs |
 |------|-----|
 | **Oakley: size variants** — parser currently handles eyewear (one-size). Apparel (310), footwear (35) and goggles need the size axis parsed from the PDP + colour×size explosion | 8–10 |
-| **Oakley: category / type** — breadcrumb currently grabs promo-collection names; map to real categories | 3 |
-| **Oakley: colour names** — replace fallback labels (`Matte Black (E655)`) with real swatch names from the page | 3 |
+| ~~**Oakley: category / type**~~ — **done 2026-09-10.** `_product_type()` maps the `utag_data.product_category` code to a Shopify Type (breadcrumb was promo junk for ~half of softgoods). `validate.py` promo-Type smells 13/20 → 0 on live samples. Segment map extends during QA. | ~~3~~ → 0.5 (QA top-ups) |
+| **Oakley: colour names** — swatch links carry the real name in `title="Blackout"` on the main page; `utag` FrameColor is empty for softgoods. Swap the label source | 3 |
 | **Oakley: colourway grouping** — decide + implement (mirror source vs. group into one product with a Colour option — Risk 6) | 0–4 |
 | **Woo (PT + Crispi): per-variant SKUs** — parse each product page's variation form (Store API under-reports — Risk 9) | 4 |
 | **Full Oakley run + image re-host at scale** — ~3.5 hrs unattended machine time, then verify ~12k images landed | 4 |
@@ -173,7 +173,10 @@ babysitting.
    different site (crispi.com), re-scoped. **Confirm which catalogue.**
 5. **Size variants (Oakley apparel/footwear/goggles).** The parser handles
    eyewear (one-size) today. ~580 products need the size axis parsed from the
-   PDP and exploded colour×size. Costed in section 3 (~8–10 hrs).
+   PDP and exploded colour×size. **Recon 2026-09-10 confirms the data is in the
+   SSR HTML** — `<label class="size-button" data-size data-variant data-hasstock>`,
+   one per size with a per-size barcode — so this is straight parser work, no
+   extra requests, no blocked data. Costed in section 3 (~8–10 hrs).
 6. **Colourway grouping (Oakley).** Oakley lists colours of one model as
    separate product pages. Default = mirror the source (one Shopify product per
    colourway). Grouping into one product with a Colour option adds ~4 hrs.
@@ -181,12 +184,28 @@ babysitting.
 7. **Descriptions.** Source sites use heavy page-builder HTML. We default to
    *cleaned* (strip wrapper divs/styles, keep headings/lists/copy). Confirm
    cleaned vs. raw.
-8. **Barcodes / weights.** Oakley exposes per-variant UPCs in the page
-   (captured). Weights aren't on the PDP -> blank unless a source is provided.
-9. **WooCommerce variation coverage.** Princeton Tec / Crispi's public API
-   under-reports variations (Crispi returns 0–1 of ~12 sizes). The scraper
-   rebuilds the full option grid so *structure* is right, but those rows have no
-   SKU until we parse each product page's variation form — in the finish hours.
+8. **Barcodes / weights.** Oakley exposes per-variant UPCs in the page — eyewear
+   via `utag_data.Products`, softgoods via the size buttons' `data-variant`
+   (verified 2026-09-10), so barcodes are covered across the catalogue. Weights
+   are **not on the PDP anywhere** (confirmed) -> blank unless the client
+   provides a source. Same for Crispi/PT weights where the Store API omits them.
+9. **Per-variant SKUs — verified 2026-09-10, and the brands differ.**
+   - **Princeton Tec:** real per-size SKUs exist; the Store API exposes most
+     (≈3/4), the rest come from the product page. Finish as costed.
+   - **Crispi:** *no per-size SKUs exist to scrape.* Store API `variations[]` is
+     empty for most products; the one product exposing all 11 variation objects
+     returns the same model code (`CR75T`) on every size; no
+     `data-product_variations` on the PDP; JSON-LD has only the parent SKU; the
+     `?wc-ajax=get_variation` endpoint is bot-walled; the sitemap has no SKU
+     data. Finest SKU available = the **model-level code** (`CR65V-1`, `CR92H`…),
+     present for 11/13, blank for both Futuras. **Client decision** (put to
+     Howard): (a) model-level SKU on every variant row — default; (b) synthesise
+     `CR75T-38`… by convention; (c) leave blank, Broad Arrow assigns. This
+     removes the "parse the variation form" line from Crispi's finish hours —
+     there's nothing to parse.
+   - **Oakley softgoods:** same — the size buttons carry `data-sku=""`; only the
+     colour-level SKU (`FOA409350-02E`) exists. Per-size **barcode** is present
+     (`data-variant`), per-size SKU is not.
 10. **Product Category / Type / Tags** — blank in the sample. Leave blank, or
     auto-map from source breadcrumbs. Confirm.
 11. **New / removed products mid-project.** The crawl is now ~3.5 hrs, so this

@@ -1,4 +1,4 @@
-# scraperpro
+# Scraper Pro
 
 Scrapes a brand's public catalogue and writes a **Shopify product import sheet**
 in the Matrixify-style layout from `vertx_product_submission_sample.csv`
@@ -13,8 +13,8 @@ access to their Shopify). See `docs/quote.md` for scope, pricing and risks.
 
 | Brand | Site | Platform | Products | Status |
 |-------|------|----------|----------|--------|
-| Princeton Tec | princetontec.com | WooCommerce (public Store API) | 72 | working — SKUs partial (see gap) |
-| Crispi (AU) | **crispiaustralia.com.au** | WooCommerce (public Store API) | **13** | working — per-size SKUs missing (see gap) |
+| Princeton Tec | princetontec.com | WooCommerce (public Store API) | 72 | working — real per-variant SKUs, Store API exposes most (see gap) |
+| Crispi (AU) | **crispiaustralia.com.au** | WooCommerce (public Store API) | **13** | working — **no per-size SKUs exist** at source (see gap) |
 | Oakley SI | oakleysi.com/en-us | SAP Commerce Cloud + Akamai | ~1,400 | partial - discovery + PDP parser done; Akamai blocks volume |
 
 > The brief wrote "Cirspi / cirspiaustralia.com.au" — that domain does not
@@ -92,10 +92,23 @@ run.py
 4. `clean_description()` strips page-builder scaffolding (Magento PageBuilder,
    Avada/Fusion Builder), keeps headings/lists/paragraphs.
 
-**Known gap:** both sites' Store API under-reports variations (Crispi returns
-0–1 of ~12 sizes). Synthesised rows have the right options but **no SKU**. Fix =
-parse each product page's variation form (`data-product_variations` /
-`?wc-ajax=get_variation`). Costed in the "finish" hours in `docs/quote.md`.
+**Known gap — per-variant SKUs. Verified 2026-09-10, and the two brands differ:**
+
+- **Princeton Tec** — real per-size SKUs exist. The Store API exposes most of them
+  (e.g. 3/4 on Remix RGB); the occasional gap is fillable from the product page.
+  Worth finishing.
+- **Crispi** — **there are no per-size SKUs to scrape.** Checked every layer:
+  Store API `variations[]` is empty for most products; the one product that *does*
+  expose all 11 variation objects (`Titan Evo EFX GTX`) returns the **same
+  model-level code (`CR75T`) on every size**; the PDP has no
+  `data-product_variations`; JSON-LD carries only the parent SKU; the legacy
+  `?wc-ajax=get_variation` endpoint is bot-walled. The finest SKU that exists is
+  the **model-level code** (`CR65V-1`, `CR92H`, …), present for 11/13 products,
+  blank for both Futuras. Synthesised size rows therefore can't get a real SKU.
+  Options (client decision — see `docs/quote.md` Risk 9): put the model-level SKU
+  on every variant row (default), synthesise `CR75T-38`… by convention, or leave
+  blank for Broad Arrow to assign. The sitemap has no SKU data (Rank Math URL
+  list only).
 
 ### Oakley SI path — partially built (`scraperpro/sites/oakleysi.py` + `scraperpro/fetch.py`)
 
@@ -114,14 +127,26 @@ Recon 2026-09-10 (see `docs/quote.md` §3):
 - **Discovery via `/en-us/sitemap.xml`** — all **1,541 product URLs in one
   request**, with `<lastmod>` for incremental runs. Falls back to the category
   crawl if the sitemap is unavailable.
-- **PDP parser** — title, breadcrumb -> Type, cleaned description + measurements,
-  SEO description, image gallery, per-colour Sku/UPC. Ran end to end on real
-  products.
+- **PDP parser** — title, `utag_data.product_category` -> Type, cleaned
+  description + measurements, SEO description, image gallery, per-colour Sku/UPC.
+  Ran end to end on real products.
 - **Circuit breaker** — after 3 Akamai-blocked requests in a row it aborts in
   ~30 s and keeps what it scraped (was: 20+ min of exponential backoff).
 
 **What's stubbed:** apparel/footwear/goggle *size* explosion (eyewear is
 one-size); colourway grouping (currently one Shopify product per style code).
+Colour-name polish for softgoods.
+
+**Recon 2026-09-10 — the stubbed data is all in the SSR HTML; these are parser
+gaps, not blocked-data gaps:**
+
+| Field | Where it actually is (verified on live PDPs) | Status |
+|-------|----------------------------------------------|--------|
+| **Category / Type** | `utag_data.product_category` — a stable code (`oo_afa_foot_boot`, `oo_afa_app_topw_tshirt_lifestyle`) that survives promo breadcrumbs. The `.breadcrumb` path is unreliable (many products route through `Home / Landing / Holiday Gifts for Tactical Missions / …`). | ✅ **done** — `_product_type()` maps the code's most specific known segment to a Type; falls back to `data-sizecategory`, then a promo-filtered breadcrumb. `validate.py` promo-Type smells: 13/20 → 0. Segment map (`_CATEGORY_SEGMENTS`) extends as new codes surface in QA. |
+| **Sizes** | `<label class="size-button" data-size="M" data-variant="<13-digit EAN>" data-hasstock="true" data-sku="">` — one per size, repeated ~3× in the DOM. Boot `11190`: 16 sizes 6–13.5. Tee `FOA409350`: S–XXL. Per-size **barcode present**, per-size **SKU empty**. | ⬜ stubbed — `option2=""` today |
+| **Colour names** | Colour swatch links on the main page: `<a href="/en-us/product/<style>?variant=<UPC>" title="Blackout">` — the colour name is the **`title` attribute**, no extra fetch needed. `utag_data.Products[*].FrameColor` is **empty for softgoods** (only populated for eyewear), which is why the current fallback labels are junk. | ⬜ not started |
+| **Per-variant SKU** | `data-sku=""` on every size button; `utag` gives only the colour-level SKU (`FOA409350-02E`, `11190-02E`). Same situation as Crispi — no size-level SKU exists. | client decision |
+| **Weights** | Confirmed **not on the PDP** anywhere. Stays blank unless the client supplies a source. | blank |
 
 #### The Akamai wall
 
@@ -246,8 +271,11 @@ DigitalOcean Spaces ($5/mo). Same `boto3` code.
 
 - **Oakley SI** — Akamai blocks sustained crawling from one IP (see "The Akamai
   wall"). Needs cookie-seeding / proxies / an unblocker for the full ~1,400.
-  Apparel/footwear size explosion is stubbed (eyewear is one-size).
-- WooCommerce variation SKUs incomplete (Store API under-reports — see gap).
+  Apparel/footwear size explosion is stubbed (eyewear is one-size) — data is
+  present in the SSR HTML, see the recon table above.
+- **Per-variant SKUs:** Princeton Tec has real ones (mostly via Store API);
+  Crispi and Oakley softgoods have **no size-level SKU at source** — model /
+  colour-level code only. See the per-brand gap notes above.
 - Gallery images attached to variant rows positionally; colour-accurate pinning
   uses `Variant Image`.
 - `Tags` / `Product Category` blank (as in the sample). `Variant Price` filled

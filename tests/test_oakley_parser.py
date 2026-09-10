@@ -11,12 +11,15 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 from scraperpro.fetch import FixtureFetcher
-from scraperpro.sites.oakleysi import OakleySIScraper, _style_codes, _utag_products
+from scraperpro.sites.oakleysi import (
+    OakleySIScraper, _style_codes, _utag_products, _product_type, _type_from_code,
+)
 from scraperpro.shopify_columns import HEADER
 
 FIX = os.path.join(os.path.dirname(__file__), "fixtures")
 PDP = os.path.join(FIX, "oakleysi_pdp_holbrook.html")
 CAT = os.path.join(FIX, "oakleysi_category_sunglasses.html")
+BOOT = os.path.join(FIX, "oakleysi_pdp_boot_11190.html")
 
 
 def _html(p):
@@ -37,6 +40,23 @@ def test_utag_products_parsed():
     assert upc.isdigit() and len(upc) >= 12          # UPC/EAN
     assert rec["Sku"] == "OO9102-B9"
     assert rec["FrameColor"] == "Matte Tortoise"
+
+
+def test_type_from_taxonomy_code():
+    # most specific known segment wins; unknown segments (lens tech, marketing) skipped
+    assert _type_from_code("osi_ew_sun_ond_bs") == "Sunglasses"
+    assert _type_from_code("oo_afa_foot_boot") == "Boots"
+    assert _type_from_code("oo_afa_app_topw_tshirt_lifestyle") == "T-Shirts"
+    assert _type_from_code("osi_afa_app_topw_hod-swea") == "Hoodies & Sweatshirts"
+    assert _type_from_code("") == ""
+
+
+def test_promo_breadcrumb_still_gets_a_real_type():
+    # this boot's breadcrumb is "Home / Landing / Holiday Gifts for Tactical
+    # Missions / Top Performing Gear" — the old breadcrumb[1] logic returned junk
+    html = _html(BOOT)
+    from bs4 import BeautifulSoup
+    assert _product_type(BeautifulSoup(html, "lxml"), html) == "Boots"
 
 
 def test_pdp_parses_to_product():
