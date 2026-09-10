@@ -35,16 +35,24 @@ from ..shopify_columns import Product, Variant
 
 BASE = "https://www.oakleysi.com"
 
-CATEGORIES = [
-    "/en-us/category/sunglasses",
-    "/en-us/category/eyeglasses",
-    "/en-us/category/prescription",
-    "/en-us/category/goggles/off-duty/snow-goggles",
-    "/en-us/category/goggles/off-duty/mx-goggles",
-    "/en-us/category/apparel",
-    "/en-us/category/accessories",
-    "/en-us/category/apparel/footwear",
-]
+# Category groups — used to scope a phased delivery (see docs/quote-for-howard.md).
+# `all` uses the sitemap (1 request); the named groups crawl only their category
+# pages for discovery.
+CATEGORY_GROUPS = {
+    "eyewear": [
+        "/en-us/category/sunglasses",
+        "/en-us/category/eyeglasses",
+        "/en-us/category/prescription",
+        "/en-us/category/goggles/off-duty/snow-goggles",
+        "/en-us/category/goggles/off-duty/mx-goggles",
+    ],
+    "softgoods": [
+        "/en-us/category/apparel",
+        "/en-us/category/accessories",
+        "/en-us/category/apparel/footwear",
+    ],
+}
+CATEGORIES = CATEGORY_GROUPS["eyewear"] + CATEGORY_GROUPS["softgoods"]
 
 _STYLE_RE = re.compile(r"/en-us/product/([A-Za-z0-9]+)")
 _MAX_COLOURS = 12
@@ -53,7 +61,8 @@ _MAX_COLOURS = 12
 class OakleySIScraper:
     vendor = "Oakley SI"
 
-    def __init__(self, fetcher=None, throttle: float = 1.5, fast: bool = False) -> None:
+    def __init__(self, fetcher=None, throttle: float = 1.5, fast: bool = False,
+                 group: str | None = None) -> None:
         if fetcher is None:
             from ..fetch import make_fetcher
             fetcher = make_fetcher(throttle=throttle)
@@ -62,6 +71,11 @@ class OakleySIScraper:
         # fast mode: 1 page load per product (no per-colour ?variant= fetches).
         # Other colours get their barcode from the main page but no SKU / colour name.
         self.fast = fast
+        # group: None/"all" -> whole catalogue via the sitemap.
+        #        "eyewear" / "softgoods" -> only those categories (for phased delivery).
+        self.group = (group or "all").lower()
+        if self.group not in ("all", *CATEGORY_GROUPS):
+            raise ValueError(f"group must be all / {' / '.join(CATEGORY_GROUPS)}")
 
     # ------------------------------------------------------------------ crawl
     SITEMAP = f"{BASE}/en-us/sitemap.xml"
@@ -207,7 +221,13 @@ class OakleySIScraper:
 
     def run(self, limit: int | None = None) -> list[Product]:
         try:
-            urls = self.discover_product_urls(stop_at=limit)
+            if self.group == "all":
+                urls = self.discover_product_urls(stop_at=limit)
+            else:
+                print(f"  [{self.vendor}] group '{self.group}' — crawling "
+                      f"{len(CATEGORY_GROUPS[self.group])} category pages for discovery")
+                urls = self.discover_product_urls(
+                    categories=CATEGORY_GROUPS[self.group], use_sitemap=False, stop_at=limit)
         except BlockedError as e:
             print(f"  !! {e}")
             return []

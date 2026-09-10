@@ -44,6 +44,9 @@ def main(argv: list[str]) -> int:
     ap.add_argument("--fast", action="store_true",
                     help="Oakley only: 1 request per product (skip per-colour pages). "
                          "~3x more products before Akamai blocks; other colours get barcode only, no SKU/name.")
+    ap.add_argument("--only", choices=("eyewear", "softgoods"), default=None,
+                    help="Oakley only: scrape just one category group (for phased delivery). "
+                         "Default = whole catalogue via the sitemap.")
     ap.add_argument("--out-dir", default=OUT_DIR)
     args = ap.parse_args(argv)
 
@@ -55,7 +58,12 @@ def main(argv: list[str]) -> int:
     for brand in args.brands:
         print(f"\n=== {brand} ({args.format}) ===")
         t0 = time.perf_counter()
-        kw = {"fast": True} if (args.fast and brand == "oakleysi") else {}
+        kw = {}
+        if brand == "oakleysi":
+            if args.fast:
+                kw["fast"] = True
+            if args.only:
+                kw["group"] = args.only
         scraper = REGISTRY[brand](**kw)
         try:
             products = scraper.run(limit=args.limit)
@@ -68,7 +76,7 @@ def main(argv: list[str]) -> int:
             rc = 1
             continue
 
-        if brand == "oakleysi" and args.limit is None and len(products) < 1400:
+        if brand == "oakleysi" and args.limit is None and not args.only and len(products) < 1400:
             print(f"  NOTE: partial run — {len(products)} of ~1,541 products "
                   "(Akamai block or interrupt). The CSV is still written; re-run later for the rest.")
             rc = 1
@@ -78,7 +86,8 @@ def main(argv: list[str]) -> int:
             for handle, probs in flagged[:10]:
                 print(f"      {handle}: {'; '.join(probs)}")
 
-        path = os.path.join(args.out_dir, f"{brand}_{suffix}.csv")
+        tag = f"_{args.only}" if (brand == "oakleysi" and args.only) else ""
+        path = os.path.join(args.out_dir, f"{brand}{tag}_{suffix}.csv")
         n = write_csv(path, products)
         print(f"  wrote {len(products)} products / {n} rows -> {path}")
 

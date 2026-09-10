@@ -57,6 +57,23 @@ and QA across all 1,541 products.
 
 ---
 
+## Why Oakley is most of the cost
+
+The three brands are not the same amount of work:
+
+| | Princeton Tec + Crispi | Oakley SI |
+|---|---|---|
+| Platform | WooCommerce — has a built-in public product feed | Enterprise platform (SAP), **no feed** — every product read from its own web page |
+| Products | 85 combined | **1,541** |
+| Access | open | **commercial bot protection (Akamai)** — the site actively blocks automated access; needs a paid unblocking service (the ~$75 line below) |
+| Images | import straight from the source | Oakley's image servers send a format Shopify rejects — all **~12,000 images** must be downloaded, converted and re-hosted |
+| Effort share | ~15% | ~85% |
+
+Princeton Tec and Crispi are a few days' work. Oakley is a catalogue-scale build:
+1,541 pages to read and parse, bot protection to get through, 12,000 images to
+re-host, and QA across the whole catalogue — which is the single biggest task,
+because at that volume you can't just eyeball it.
+
 ## Price (AUD)
 
 **Fixed: $2,000** for all three brands as scoped.

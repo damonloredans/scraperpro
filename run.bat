@@ -39,7 +39,11 @@ set "EXTRA="
 if not "!LIM!"=="" set "EXTRA=--limit !LIM!"
 
 set "DLIMG=n"
+set "OTAG="
 if "%BRANDS%"=="oakleysi" (
+    set /p "OGRP=  Which set? [a]ll / [e]yewear / [s]oftgoods (apparel+acc+footwear+goggles) [a]: "
+    if /i "!OGRP!"=="e" ( set "EXTRA=!EXTRA! --only eyewear"   & set "OTAG=_eyewear" )
+    if /i "!OGRP!"=="s" ( set "EXTRA=!EXTRA! --only softgoods" & set "OTAG=_softgoods" )
     set /p "FAST=  Fast mode? 1 request/product, ~3x more before Akamai blocks [y/N]: "
     if /i "!FAST!"=="y" set "EXTRA=!EXTRA! --fast"
     set /p "DLIMG=  Download images too? [y/N]: "
@@ -58,7 +62,7 @@ echo.
 set /p "REHOST=  Re-host images to R2 and rewrite the CSV now? [y/N]: "
 if /i not "!REHOST!"=="y" goto :done
 for %%F in (!FMTS!) do (
-    if /i "%%F"=="matrixify" ( set "CSV=output\oakleysi_shopify.csv" ) else ( set "CSV=output\oakleysi_shopify-native.csv" )
+    if /i "%%F"=="matrixify" ( set "CSV=output\oakleysi!OTAG!_shopify.csv" ) else ( set "CSV=output\oakleysi!OTAG!_shopify-native.csv" )
     echo   ^>^> %PY% tools\rehost_images.py !CSV! --prefix oakley
     %PY% tools\rehost_images.py !CSV! --prefix oakley
 )
@@ -73,10 +77,12 @@ echo.
 set /p "QA=  Run the validator on the output? [Y/n]: "
 if /i "!QA!"=="n" goto :done
 for %%B in (%BRANDS%) do (
+    set "TAG="
+    if "%%B"=="oakleysi" set "TAG=!OTAG!"
     for %%F in (!FMTS!) do (
         if /i "%%F"=="matrixify" ( set "SFX=shopify" ) else ( set "SFX=shopify-native" )
-        set "CSV=output\%%B_!SFX!.csv"
-        if exist "output\%%B_!SFX!.r2.csv" set "CSV=output\%%B_!SFX!.r2.csv"
+        set "CSV=output\%%B!TAG!_!SFX!.csv"
+        if exist "output\%%B!TAG!_!SFX!.r2.csv" set "CSV=output\%%B!TAG!_!SFX!.r2.csv"
         if exist "!CSV!" (
             echo.
             echo   ^>^> %PY% tools\validate.py !CSV!
