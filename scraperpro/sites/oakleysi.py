@@ -175,6 +175,42 @@ class OakleySIScraper:
             time.sleep(0.2)
         return out
 
+    def download_images(self, products: list[Product], out_dir: str) -> int:
+        """Save every product image to <out_dir>/<handle>/NN.png (origin PNG).
+
+        Oakley images can't be imported into Shopify by URL (see `_images`), so
+        the pipeline is: download here, bulk-upload to Shopify Files (or attach
+        via the Admin API when creating the product), then swap the CSV
+        `Image Src` values for the Shopify-hosted URLs.
+
+        Image requests are NOT Akamai-gated the way page requests are, so a plain
+        client works.
+        """
+        import os
+        import requests
+
+        sess = requests.Session()
+        sess.headers["Accept"] = "image/*"          # not "image/avif" -> CDN returns origin PNG
+        n = 0
+        for p in products:
+            pdir = os.path.join(out_dir, p.handle)
+            os.makedirs(pdir, exist_ok=True)
+            for idx, url in enumerate(dict.fromkeys(p.images), 1):
+                dest = os.path.join(pdir, f"{idx:02d}.png")
+                if os.path.exists(dest):
+                    continue
+                try:
+                    r = sess.get(url, timeout=30)
+                    r.raise_for_status()
+                except requests.RequestException as e:
+                    print(f"    ! image {url}: {e}")
+                    continue
+                with open(dest, "wb") as fh:
+                    fh.write(r.content)
+                n += 1
+                time.sleep(0.1)
+        return n
+
 
 # --- helpers -----------------------------------------------------------------
 
@@ -260,10 +296,12 @@ def _utag_products(html: str) -> dict:
 
 def _description(soup: BeautifulSoup) -> str:
     parts = [str(d) for d in soup.select(".singleContent")]
-    meas = soup.select(".sizeText")
-    if meas:
-        rows = "".join(f"<li>{m.find_parent().get_text(' ', strip=True)}</li>" for m in meas)
-        parts.append(f"<h3>Frame &amp; Lenses</h3><ul>{rows}</ul>")
+    if not any("FRAME & LENSES" in p or "Lens Width" in p for p in parts):
+        # some PDPs keep the measurements outside .singleContent
+        meas = soup.select(".sizeText")
+        if meas:
+            rows = "".join(f"<li>{m.find_parent().get_text(' ', strip=True)}</li>" for m in meas)
+            parts.append(f"<h3>Frame &amp; Lenses</h3><ul>{rows}</ul>")
     return common.clean_description("".join(parts))
 
 
@@ -272,20 +310,27 @@ def _meta(soup: BeautifulSoup, name: str) -> str:
     return common.html_unescape(m["content"]) if m and m.get("content") else ""
 
 
+IMG_ORIGIN_QS = "?imFmt=jpg"   # any non-`impolicy` param -> CDN serves the origin PNG, not AVIF
+
+
 def _images(soup: BeautifulSoup) -> list[str]:
     """Product shots from the `assets*.oakley.com` CDN.
 
-    That CDN does Accept-header format negotiation: the default URL (and the
-    `?impolicy=...` transform URL) serves **AVIF**, which Shopify's media
-    pipeline rejects ("Media processing failed"). Appending any non-`impolicy`
-    query param (`?fmt=jpg`) disables negotiation and returns the origin PNG,
-    which Shopify accepts. Verified 2026-09-10.
+    The CDN does Accept-header format negotiation: the plain URL and any
+    `?impolicy=...` transform URL serve **AVIF**, which Shopify's media pipeline
+    rejects ("Media processing failed"). `IMG_ORIGIN_QS` forces the origin PNG.
+
+    NOTE: importing these by URL in a CSV still fails for Oakley — Shopify's
+    importer drops the query string and/or Akamai blocks Shopify's fetcher IPs.
+    Oakley images must be **downloaded and rehosted** (Shopify Files, or attach
+    via the Admin API when creating the product). See `download_images()` and
+    docs/quote.md.
     """
     out = []
     for img in soup.select("img"):
         src = img.get("src") or img.get("data-src") or ""
         if "prod-onecp-record-files" in src:
-            out.append(src.split("?")[0] + "?fmt=jpg")
+            out.append(src.split("?")[0] + IMG_ORIGIN_QS)
     return list(dict.fromkeys(out))
 
 

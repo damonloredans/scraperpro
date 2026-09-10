@@ -106,14 +106,15 @@ for the fix and its pass-through cost.
 | Recon — **done** | 2 | 2 |
 | Fetcher: Chrome-impersonation client **or** Playwright + proxy rotation + throttle | 4 | 10 |
 | Category crawler (all categories, pagination, colourway URLs) | 5 | 6 |
-| PDP parser (name, desc, features, measurements, colours, sizes, UPCs, images from `productObj`/`__utagProducts`) | 9 | 10 |
+| PDP parser (name, desc, features, measurements, colours, sizes, UPCs) — **built + tested** | 9 | 10 |
 | Variant explosion (colour × size) + colourway grouping decision | 4 | 4 |
+| **Image rehosting** — download ~14k images, bulk-upload to Shopify Files or attach via Admin API, rewrite `Image Src` (Oakley's CDN serves AVIF; Shopify rejects it and won't take the query-string workaround — see Risk 15) | 6 | 6 |
 | Transform to Shopify template | 4 | 4 |
 | Spec/description cleanup + SEO fields | 3 | 3 |
 | QA at scale (validation script + sampling ~1,400 products) | 8 | 8 |
 | Revision round | 5 | 6 |
 | Buffer: Akamai blocks, re-runs, catalogue changes mid-crawl | 4 | 7 |
-| **Subtotal** | **~48** | **~60** |
+| **Subtotal** | **~54** | **~66** |
 
 ¹ *Light path*: a Chrome-TLS-impersonating HTTP client (`curl_cffi` / `hrequests`)
 gets past Akamai for GET-only page fetches. ~1–2 s/page. **Try first** — discovery
@@ -135,11 +136,11 @@ debug port. ~3–8 s/page, heavier, but the reliable fallback.
 |--------|-------|
 | Princeton Tec | 11 |
 | Crispi AU | 10.5 |
-| Oakley SI | 48–60 |
+| Oakley SI | 54–66 |
 | Overhead + contingency | 10 |
-| **TOTAL** | **~80–92 hrs** |
-| — **already complete** (discovery for all 3, format spec, working prototype for Princeton Tec + Crispi, Oakley recon) | **~10 hrs** |
-| **Remaining** | **~70–82 hrs** |
+| **TOTAL** | **~85–97 hrs** |
+| — **already complete** (discovery for all 3, format spec, working Princeton Tec + Crispi + Oakley parser, live import testing) | **~13 hrs** |
+| **Remaining** | **~72–84 hrs** |
 
 ---
 
@@ -153,12 +154,12 @@ AUD $7,000–10,000.)
 
 | Line | Hrs | AUD |
 |------|-----|-----|
-| Discovery + working prototype (2 of 3 brands + Oakley recon) — **done** | 10 | $220 |
+| Discovery + working prototype (all 3 parsers + live import testing) — **done** | 13 | $285 |
 | Princeton Tec — finish | 6 | $130 |
 | Crispi AU — finish | 7 | $155 |
-| Oakley SI — full build | 54 | $1,190 |
+| Oakley SI — full build (incl. image rehosting) | 55 | $1,210 |
 | Overhead + contingency | 10 | $220 |
-| **Labour total** | **~87** | **≈ $1,900** |
+| **Labour total** | **~91** | **≈ $2,000** |
 | Data infrastructure (unblocker API / residential proxies for Oakley) — **billed at cost** | — | **$0–150** |
 
 The infrastructure line is a **pass-through**: Oakley SI's Akamai protection needs
@@ -286,7 +287,18 @@ days (batches, not flat-out) — that overlaps weeks 2–3 and isn't hands-on ti
     reseller/distributor arrangement with these brands and the right to list
     their catalogues and use their photos/copy. Get it in writing + an indemnity
     clause (see Risk 3). Client's responsibility.
-15. **One-time capture.** Ongoing sync quoted separately.
+15. **Oakley images must be rehosted.** `assets*.oakley.com` serves AVIF (via
+    Accept negotiation); Shopify rejects AVIF and won't honour the query-string
+    workaround through the CSV importer. So Oakley images have to be downloaded
+    (~14k of them) and either bulk-uploaded to Shopify Files or attached via the
+    Admin API at product-create time, with the CSV pointing at Shopify URLs. The
+    scraper's `download_images()` handles the download; the upload/rewrite is
+    costed in §4. **Woo (Princeton Tec, Crispi) images import fine by URL.**
+16. **Import method.** The sample is a **Matrixify** sheet — imports via the
+    Matrixify app. `run.py --format shopify` also emits a native Shopify CSV for
+    the built-in importer. Live testing: Princeton Tec imports clean; the Crispi
+    "0 products" issue (options) and Oakley images (above) are handled.
+17. **One-time capture.** Ongoing sync quoted separately.
 
 ---
 

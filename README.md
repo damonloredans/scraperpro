@@ -147,13 +147,34 @@ run (separate quote).
 Full column-by-column spec: **`docs/format-mapping.md`**.
 Scope / pricing / risks: **`docs/quote.md`**.
 
-## Known limitations
+## Import gotchas (found in live Shopify testing, 2026-09-10)
 
-- **Oakley SI** — parser works, but Akamai blocks sustained crawling from one IP
-  (see "The Akamai wall" above). Needs cookie-seeding / proxies / an unblocker
-  for the full ~1,400 products. Size explosion for apparel/footwear is stubbed.
-- WooCommerce variation SKUs incomplete (see gap note above).
+- **Princeton Tec** — imports clean (Matrixify format), with USD prices.
+- **Crispi imported "0 products added"** — cause: size-only products had
+  `Option2 Name` set with `Option1 Name` empty, which Shopify silently rejects.
+  **Fixed** — options now pack into Option1 first (`_resolve_options`), so a
+  size-only boot is `Option1 Name = Size`. Also dropped the sample's stray
+  trailing space in `"Size "`.
+- **Oakley images: "Media processing failed"** — `assets*.oakley.com` does
+  Accept-header negotiation and serves **AVIF**, which Shopify rejects. Forcing
+  the origin PNG via a query param works from a browser but **not** through
+  Shopify's CSV importer (it drops the query string, and/or Akamai blocks
+  Shopify's fetcher IPs). Oakley images must be **downloaded and rehosted**:
+  `OakleySIScraper.download_images(products, out_dir)` saves origin PNGs; then
+  bulk-upload to Shopify Files or attach them via the Admin API when creating
+  the product, and swap the CSV `Image Src` for the Shopify URLs. Woo image URLs
+  import fine as-is.
+- **Oakley description had duplicate measurements** — the `.singleContent` block
+  already contains the frame/lens measurements; **fixed** — we no longer append
+  the separate `.sizeText` block when they're already present.
+
+## Other known limitations
+
+- **Oakley SI** — Akamai blocks sustained crawling from one IP (see "The Akamai
+  wall"). Needs cookie-seeding / proxies / an unblocker for the full ~1,400.
+  Apparel/footwear size explosion is stubbed (eyewear is one-size).
+- WooCommerce variation SKUs incomplete (Store API under-reports — see gap).
 - Gallery images attached to variant rows positionally; colour-accurate pinning
   uses `Variant Image`.
-- `Tags`, `Product Category`, `Type`, `Variant Price`, `Compare At Price` left
-  blank (as in the sample).
+- `Tags` / `Product Category` blank (as in the sample). `Variant Price` filled
+  for Princeton Tec (USD); blank for Crispi + Oakley.

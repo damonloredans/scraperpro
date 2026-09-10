@@ -48,7 +48,8 @@ def test_pdp_parses_to_product():
     assert p.option1_name == "Colour"
     assert len(p.images) >= 5
     assert "Holbrook is a timeless" in p.body_html
-    assert "Frame &amp; Lenses" in p.body_html            # measurements block
+    assert "Bridge Width 18 mm" in p.body_html            # measurements present
+    assert p.body_html.count("Bridge Width 18 mm") == 1   # ...exactly once (no dup)
 
     v = p.variants[0]
     assert v.option1 == "Matte Tortoise"
