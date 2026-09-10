@@ -2,7 +2,9 @@ __pycache__/
 *.pyc
 .venv/
 venv/
+*.log
+
+# scraper outputs + local scratch
 output/*.csv
 output/*.json
 .cache/
-*.log

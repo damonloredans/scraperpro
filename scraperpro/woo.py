@@ -31,6 +31,7 @@ class WooScraper:
     colour_attr_names = {"color", "colour"}
     size_attr_names = {"size"}
     fetch_barcodes = True               # hit each PDP for JSON-LD gtin
+    include_price = True                 # copy the source RRP into Variant Price
     throttle = 0.5                       # seconds between requests
 
     def __init__(self) -> None:
@@ -116,25 +117,26 @@ class WooScraper:
         return names
 
     def _resolve_options(self, axis_names: list[str]) -> tuple[tuple[str, str, str], dict[str, int]]:
-        """Assign option axes to slots 0/1/2 and return both the option *names*
-        and a {attr_name: slot_index} map so variant values land in the same
-        slot as their name."""
+        """Pack the option axes into Option1/2/3 **in order, with no gaps** —
+        Shopify rejects a product that has Option2 set but Option1 empty. Order
+        of preference: Colour, then Size, then anything else. So a size-only
+        product gets `Option1 Name = Size`, not Option2.
+
+        Returns the option *names* tuple and a {attr_name: slot_index} map so
+        each variant's values land in the slot matching its name.
+        """
+        def rank(name: str) -> int:
+            return {"colour": 0, "size": 1}.get(self._attr_role(name), 2)
+
+        display = {"colour": "Colour", "size": "Size"}
+        # (the sample's "Size " has a stray trailing space — dropped; it risks a
+        #  literal "Size " option name on import)
+        ordered = sorted(axis_names, key=rank)[:3]
         slots = ["", "", ""]
         slot_of: dict[str, int] = {}
-        pending = []
-        for name in axis_names:
-            role = self._attr_role(name)
-            if role == "colour" and not slots[0]:
-                slots[0], slot_of[name] = "Colour", 0
-            elif role == "size" and not slots[1]:
-                slots[1], slot_of[name] = "Size ", 1   # trailing space matches the sample
-            else:
-                pending.append(name)
-        for name in pending:
-            for i in range(3):
-                if not slots[i]:
-                    slots[i], slot_of[name] = name, i
-                    break
+        for i, name in enumerate(ordered):
+            slots[i] = display.get(self._attr_role(name), name)
+            slot_of[name] = i
         return tuple(slots), slot_of  # type: ignore[return-value]
 
     # -- transform ----------------------------------------------------------------
@@ -149,10 +151,11 @@ class WooScraper:
             slot = slot_of.get(name)
             if slot is None:
                 continue
-            opts[slot] = self.normalise_size(disp) if slot == 1 else disp
+            opts[slot] = self.normalise_size(disp) if self._attr_role(name) == "size" else disp
         sku = var.get("sku") or ""
         if not any(opts):
             opts[0] = "Default Title"
+        price, compare_at = self._prices(var.get("prices"))
         return Variant(
             option1=opts[0],
             option2=opts[1],
@@ -160,9 +163,35 @@ class WooScraper:
             sku=sku,
             grams=common.grams(var.get("weight"), "kg"),
             barcode=barcodes.get(sku, "") or barcodes.get(var.get("name", ""), ""),
-            price="",   # client sets pricing (blank in the sample)
+            price=price,
+            compare_at=compare_at,
             image=(var.get("images") or [{}])[0].get("src", ""),
         )
+
+    def _prices(self, prices: dict | None) -> tuple[str, str]:
+        """Source RRP -> (Variant Price, Variant Compare At Price).
+
+        WooCommerce Store API gives amounts in minor units (cents). This is the
+        *source retailer's* list price -- Princeton Tec in USD, Crispi in AUD.
+        The client decides whether to keep it, convert it, or apply a margin
+        (see docs/quote.md confirmations). We just capture what the site shows.
+        """
+        if not self.include_price or not prices:
+            return "", ""
+        unit = 10 ** int(prices.get("currency_minor_unit", 2))
+
+        def _fmt(v):
+            try:
+                amount = int(v) / unit
+            except (TypeError, ValueError):
+                return ""
+            return f"{amount:.2f}" if amount > 0 else ""   # 0 = "not published via API"
+
+        price = _fmt(prices.get("price"))
+        regular = _fmt(prices.get("regular_price"))
+        # only set Compare At when there's a genuine markdown
+        compare_at = regular if regular and price and regular != price else ""
+        return price, compare_at
 
     @staticmethod
     def _expected_combo_count(raw: dict, axis_names: list[str]) -> int:
@@ -183,8 +212,10 @@ class WooScraper:
                              for t in attr.get("terms", [])])
         out = []
         for combo in itertools.product(*per_axis):
-            out.append(self._variant_from({"sku": "", "weight": raw.get("weight"), "images": []},
-                                          list(combo), slot_of, {}))
+            out.append(self._variant_from(
+                {"sku": "", "weight": raw.get("weight"), "images": [],
+                 "prices": raw.get("prices")},
+                list(combo), slot_of, {}))
         return out
 
     def build_product(self, raw: dict) -> Product:
@@ -244,11 +275,14 @@ class WooScraper:
         variants = _dedupe_variants(variants)
 
         if not variants:
+            price, compare_at = self._prices(raw.get("prices"))
             variants.append(Variant(
                 option1="Default Title",
                 sku=raw.get("sku") or "",
                 grams=common.grams(raw.get("weight"), "kg"),
                 barcode=next(iter(barcodes.values()), ""),
+                price=price,
+                compare_at=compare_at,
             ))
             o1 = o2 = o3 = ""
 

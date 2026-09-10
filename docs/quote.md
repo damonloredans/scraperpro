@@ -1,7 +1,7 @@
 # Quote — Brand Scrape to Shopify Submission Format
 
 **Prepared for:** Howard (Broad Arrow Tactical — broadarrowtactical.com.au)
-**Re:** Product data capture for Oakley SI, Princeton Tec, Crispi (AU) → Shopify import sheet
+**Re:** Product data capture for Oakley SI, Princeton Tec, Crispi (AU) -> Shopify import sheet
 **Date:** 2026-09-10
 **Status:** Estimate. Firms into a fixed quote after the ~1-day discovery + sample sign-off.
 
@@ -24,14 +24,22 @@ sheet — see `docs/format-mapping.md`):
 
 Per product: handle, title, vendor, description (HTML), SEO title/description,
 options (colour / size), one row per variant, SKU, barcode (where public),
-weight in grams, image URLs (main + gallery). Output as **draft** products with
-**blank price**.
+weight in grams, image URLs (main + gallery). Output as **draft** products.
 
-**Pricing is out of scope.** The sample sheet ships with `Variant Price` blank —
-you set retail pricing in Shopify. It's also the only option for Oakley SI, whose
-prices are the one thing hidden behind the members' login (see §5, Risk 1). If a
-price list or a logged-in session is provided later, prices are a small follow-up
-pass.
+**Pricing.** The sample sheet ships with `Variant Price` blank. We now capture
+what each source site *shows*:
+
+| Brand | Price available? | What we put in `Variant Price` |
+|-------|------------------|-------------------------------|
+| Princeton Tec | Yes — public API | source RRP **in USD** (Broad Arrow is AU -> needs FX + margin, or overwrite) |
+| Crispi AU | No — the store API returns `0` for variable products (real prices are on the product page, same gap as SKUs) | blank until product-page parsing is added |
+| Oakley SI | No — login-gated (`<format:price/>` placeholder logged-out) | blank |
+
+So realistically Oakley + Crispi land **blank** and Princeton Tec lands as **USD
+RRP**. The client needs to decide how retail price is set — see §8. Options:
+leave blank and price in Shopify; give us a **margin formula** (e.g.
+`retail = RRP × 1.4`, or `cost ÷ (1 − 0.35)`) to apply; or supply a cost/price
+list to merge.
 
 ---
 
@@ -61,8 +69,8 @@ Loaded several live pages. What we confirmed:
 | Price? | **No.** Empty Hybris `<format:price/>` placeholder for logged-out users. Confirmed login-only. |
 | Is there a REST/JSON API (SAP OCC)? | **No.** `/occ/v2/…` falls through to the site search page. HTML scraping only. |
 | JS rendering needed? | **No** for the core data — pages are server-side rendered. |
-| Bot protection? | **Yes — Akamai.** `requests` → 403. `curl_cffi` (Chrome TLS impersonation) → clean 200s + full data for ~40–50 requests, then a JS-challenge stub. Sustained crawling needs cookie-seeding / proxies / an unblocker — see Risk 2. |
-| Does the parser actually work? | **Yes.** Built and ran end to end during recon — pulled real products (Standard Issue Holbrook USA Flag Collection, Meta Vanguard) with title, breadcrumb→Type, cleaned description + measurements, SEO text, 10–15 images, per-colour Sku/UPC — before hitting the volume block. |
+| Bot protection? | **Yes — Akamai.** `requests` -> 403. `curl_cffi` (Chrome TLS impersonation) -> clean 200s + full data for ~40–50 requests, then a JS-challenge stub. Sustained crawling needs cookie-seeding / proxies / an unblocker — see Risk 2. |
+| Does the parser actually work? | **Yes.** Built and ran end to end during recon — pulled real products (Standard Issue Holbrook USA Flag Collection, Meta Vanguard) with title, breadcrumb -> Type, cleaned description + measurements, SEO text, 10–15 images, per-colour Sku/UPC — before hitting the volume block. |
 
 **Net:** the parser is done and everything except price is obtainable. The open
 problem is **crawl volume vs. Akamai**, not "can we read the site" — see Risk 2
@@ -72,7 +80,7 @@ for the fix and its pass-through cost.
 
 ## 4. Effort estimate (hours)
 
-### Princeton Tec — WooCommerce, public Store API ✅
+### Princeton Tec - WooCommerce, public Store API
 | Task | Hrs |
 |------|-----|
 | Recon + field mapping | 1.5 |
@@ -82,7 +90,7 @@ for the fix and its pass-through cost.
 | QA + revision | 3.0 |
 | **Subtotal** | **~11** |
 
-### Crispi AU — WooCommerce, public Store API ✅
+### Crispi AU - WooCommerce, public Store API
 | Task | Hrs |
 |------|-----|
 | Recon + field mapping — **done** | 1.0 |
@@ -92,7 +100,7 @@ for the fix and its pass-through cost.
 | QA + revision | 2.5 |
 | **Subtotal** | **~10.5** |
 
-### Oakley SI — SAP Commerce, Akamai, ~1,400 products ⚠️
+### Oakley SI - SAP Commerce, Akamai, ~1,400 products
 | Task | Hrs — light path¹ | Hrs — browser path² |
 |------|------|------|
 | Recon — **done** | 2 | 2 |
@@ -150,19 +158,27 @@ AUD $7,000–10,000.)
 | Crispi AU — finish | 7 | $155 |
 | Oakley SI — full build | 54 | $1,190 |
 | Overhead + contingency | 10 | $220 |
-| **Total** | **~87** | **≈ $1,900** |
+| **Labour total** | **~87** | **≈ $1,900** |
+| Data infrastructure (unblocker API / residential proxies for Oakley) — **billed at cost** | — | **$0–150** |
 
-**Client-facing offer:** *fixed at* **AUD $2,000** for all three brands as
-scoped. Out-of-scope work at $22/hr.
+The infrastructure line is a **pass-through**: Oakley SI's Akamai protection needs
+an unblocker service (Zyte / ScraperAPI / Bright Data) or residential proxies to
+crawl ~1,400 products. One-time, ~USD $15–100 depending on provider; free-tier
+credits may cover it entirely. Cancelled after the scrape. Not needed for
+Princeton Tec or Crispi.
+
+**Client-facing offer:** *fixed at* **AUD $2,000** for all three brands as scoped
+(labour), **plus infrastructure at cost (capped at AUD $150)**. Out-of-scope work
+at $22/hr.
 
 ### Option B — phased (recommended)
 
 | Phase | Scope | AUD |
 |-------|-------|-----|
 | 1 | Princeton Tec + Crispi (near done) | **$350** |
-| 2 | Oakley SI — **eyewear only** (~957 products) | **$850** |
+| 2 | Oakley SI — **eyewear only** (~957 products) | **$850** + infra at cost |
 | 3 | Oakley SI — apparel + accessories + footwear (~450 products) | **$650** |
-| | **All phases** | **$1,850** |
+| | **All phases** | **$1,850** + infra (≤ $150) |
 
 Phase 1 delivers in week 1. Client sees the import work before committing to
 phases 2–3. Lowest risk for both sides.
@@ -174,13 +190,14 @@ phases 2–3. Lowest risk for both sides.
 | Discovery + prototype (delivered) | $220 |
 | Princeton Tec + Crispi files (week 1) | $290 |
 | Oakley SI + final delivery (weeks 2–4) | $1,490 |
-| **Total** | **$2,000** |
+| Data infrastructure (receipts attached) | at cost, ≤ $150 |
+| **Total** | **$2,000 + infra** |
 
 ---
 
 ## 6. Timeline
 
-~10 hrs already done. Remaining ~70–82 hrs at ~20 hrs/week → **~4 weeks**.
+~10 hrs already done. Remaining ~70-82 hrs at ~20 hrs/week -> **~4 weeks**.
 
 | Week | Deliverable |
 |------|-------------|
@@ -211,13 +228,25 @@ days (batches, not flat-out) — that overlaps weeks 2–3 and isn't hands-on ti
    rotation (~USD $5–15 bandwidth for the catalogue); (c) an unblocker API
    (ScraperAPI / Zyte / BrightData, ~USD $50–150). Costed as the "browser path"
    spread in §4; the proxy/unblocker fee is a pass-through, not in the hours.
-3. **Detection / legal exposure.** Akamai flags *traffic patterns and IPs*, not
-   people — it's automated rate-limiting, and the "security has been notified"
-   text is boilerplate, not an incident report. Worst realistic outcome is a
-   temporary IP block. We only fetch public, non-logged-in pages (no login
-   bypass, no checkout, no ToS click-through), at a polite rate, once. Civil risk
-   is low and sits with the client's authorisation to resell these brands
-   (Risk 14); this is not legal advice.
+3. **Detection / legal exposure** *(not legal advice — see a lawyer if unsure).*
+   - **Detection:** Akamai flags *traffic patterns and IPs*, automatically. The
+     "security has been notified" text is boilerplate, not an incident report.
+     Realistic worst case = a temporary IP block. Not a personal-threat situation.
+   - **Scraping itself:** we fetch only public, non-logged-in pages — no login
+     bypass, no checkout, no clickwrap ToS accepted — at a polite rate, once.
+     Public-data scraping is generally not a criminal matter (US: *hiQ*,
+     *Van Buren*; AU has no anti-scraping statute). A browsewrap ToS breach is a
+     *contract* issue whose usual remedy is "stop," not damages.
+   - **The real exposure is copyright** — Oakley/Luxottica, Princeton Tec and
+     Crispi own their product photos and marketing copy. Publishing them in Broad
+     Arrow's store is a reproduction. This is fine *if Broad Arrow is an
+     authorised reseller/stockist* of each brand (which is the whole premise of
+     the store); it is the client's problem if not.
+   - **Protect yourself:** get Howard's written confirmation that Broad Arrow is
+     authorised to sell and list all three brands, and put a clause in the
+     engagement that the client warrants this and indemnifies you for
+     third-party IP claims arising from the data. The contractor doing the
+     technical work is far less exposed than the party publishing commercially.
 4. **Crispi AU catalogue is only 13 products.** Verified against
    crispiaustralia.com.au's store API + category counts — that is the *entire*
    site. Crispi globally makes 40+ models; if the client expects the full range,
@@ -255,7 +284,8 @@ days (batches, not flat-out) — that overlaps weeks 2–3 and isn't hands-on ti
 13. **One revision round** per brand included. Further passes at $22/hr.
 14. **Legal / authorisation**: assumes Broad Arrow Tactical has a
     reseller/distributor arrangement with these brands and the right to list
-    their catalogues. Client's responsibility to confirm before we publish.
+    their catalogues and use their photos/copy. Get it in writing + an indemnity
+    clause (see Risk 3). Client's responsibility.
 15. **One-time capture.** Ongoing sync quoted separately.
 
 ---
@@ -268,5 +298,14 @@ days (batches, not flat-out) — that overlaps weeks 2–3 and isn't hands-on ti
   global Crispi range (different site)? (Risk 4)
 - Cleaned vs. raw descriptions (Risk 8).
 - Oakley: mirror source vs. group colourways (Risk 6).
-- Prices excluded — confirmed?
+- **Pricing** — pick one:
+  1. Leave `Variant Price` blank, set all pricing in Shopify after import.
+  2. Give us a **margin formula** to apply to the source RRP we capture
+     (e.g. `retail = RRP × 1.4`, or `retail = cost ÷ (1 − margin%)`), and say
+     whether Princeton Tec USD should be FX-converted to AUD (and at what rate).
+  3. Supply a cost or price list (CSV, keyed by SKU/UPC) to merge in.
+  Note: only Princeton Tec has a source price via API; Crispi + Oakley land blank
+  regardless (see §1).
+- Confirm Broad Arrow is authorised to sell + list all three brands, in writing
+  (Risk 3 / 14).
 - Go-ahead for the ~1-day paid discovery (credited if you proceed).

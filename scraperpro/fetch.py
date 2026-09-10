@@ -1,18 +1,22 @@
-"""Fetchers — pluggable HTTP backends.
+"""Fetchers — pluggable HTTP backends (same `.get(url, expect=None) -> str`).
 
-`CurlCffiFetcher` impersonates Chrome's TLS/JA3 fingerprint, which (as of
-2026-09-10) is enough to get past Oakley SI's Akamai edge for plain GETs.
+`CurlCffiFetcher` impersonates Chrome's TLS/JA3 fingerprint, which (2026-09-10)
+gets past Oakley SI's Akamai edge for plain GETs — but only for ~40–50 requests
+before Akamai returns a JS-challenge shell (HTTP 200, no product data). curl_cffi
+can't run that JS, so:
+  - `throttle` paces requests,
+  - `expect=` is a substring the real page must contain; if missing we treat the
+    response as a soft block and back off exponentially.
+For a full ~1,400-product crawl, seed the session with Akamai cookies from one
+real-browser visit, rotate residential proxies, or use an unblocker API.
 
-Akamai still soft-blocks after a burst: it returns HTTP 200 with a JS-challenge
-shell instead of the real page. curl_cffi can't run that JS, so the mitigations
-here are (a) a real throttle, (b) `expect=` — a substring the real page must
-contain; if it's missing we treat the response as a soft block and back off.
-
-For production-scale crawling, seed `Session` cookies from a real browser once
-per run, or swap in a Playwright-based fetcher with the same `.get()` signature.
+`FixtureFetcher` serves saved HTML from tests/fixtures — used by the offline
+parser test so the transform can be verified without hitting the site.
 """
 from __future__ import annotations
 
+import glob
+import os
 import random
 import time
 
@@ -29,6 +33,12 @@ class CurlCffiFetcher:
         self.retries = retries
         self._last = 0.0
 
+    def seed_cookies(self, cookies: dict) -> None:
+        """Prime the session with Akamai cookies (_abck / bm_sv / ak_bmsc …)
+        captured from a real browser, to ride past the JS challenge."""
+        for k, v in cookies.items():
+            self._session.cookies.set(k, v, domain=".oakleysi.com")
+
     def get(self, url: str, expect: str | None = None) -> str:
         last = "?"
         for attempt in range(self.retries):
@@ -38,11 +48,10 @@ class CurlCffiFetcher:
             self._last = time.time()
             try:
                 r = self._session.get(url, timeout=30)
-                body = r.text
-                low = body.lower()
+                low = r.text.lower()
                 if r.status_code == 200 and not any(m in low for m in _SOFT_BLOCK_MARKERS):
                     if expect is None or expect.lower() in low:
-                        return body
+                        return r.text
                     last = "soft block (missing expected content)"
                 else:
                     last = f"HTTP {r.status_code}"
@@ -52,3 +61,25 @@ class CurlCffiFetcher:
             print(f"      retry {attempt + 1}/{self.retries} in {backoff}s ({last})")
             time.sleep(backoff)
         raise RuntimeError(f"GET {url} failed after {self.retries} tries: {last}")
+
+
+class FixtureFetcher:
+    """Serves saved HTML by matching a substring of the URL to a fixture filename.
+    `mapping` = {url_substring: path}."""
+
+    def __init__(self, mapping: dict[str, str]) -> None:
+        self.mapping = mapping
+
+    @classmethod
+    def from_dir(cls, path: str) -> "FixtureFetcher":
+        m = {}
+        for f in glob.glob(os.path.join(path, "*.html")):
+            m[os.path.splitext(os.path.basename(f))[0]] = f
+        return cls(m)
+
+    def get(self, url: str, expect: str | None = None) -> str:
+        for key, path in self.mapping.items():
+            if key in url:
+                with open(path, encoding="utf-8") as fh:
+                    return fh.read()
+        raise RuntimeError(f"no fixture for {url}")

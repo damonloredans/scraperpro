@@ -232,24 +232,30 @@ def _brace_match(s: str, start: int) -> str:
     return ""
 
 
+_UTAG_ASSIGN_RE = re.compile(r'"Products"\s*:\s*\{')
+
+
 def _utag_products(html: str) -> dict:
-    anchor = html.find("utag_data.Products")
-    if anchor == -1:
-        return {}
-    brace = html.find("{", anchor)
-    if brace == -1:
-        return {}
-    blob = _brace_match(html, brace)
-    # JS object literal -> JSON: quote bare numeric keys
-    blob = re.sub(r"([{,]\s*)(\d{6,})(\s*:)", r'\1"\2"\3', blob)
-    try:
-        data = json.loads(blob)
-    except json.JSONDecodeError:
-        return {}
-    if set(data) == {"Products"} and isinstance(data["Products"], dict):
-        data = data["Products"]                       # unwrap `utag_data = {..,"Products":{..}}`
-    return {str(k): v for k, v in data.items()
-            if isinstance(v, dict) and "Sku" in v}
+    """Extract the `"Products":{ <UPC>:{...} }` object embedded in the page's
+    inline `utag_data` literal. Keys are unquoted numeric UPCs (JS, not JSON).
+    Several matches may exist; take whichever parses to a dict of variant
+    records (each has a `Sku`)."""
+    for m in _UTAG_ASSIGN_RE.finditer(html):
+        blob = _brace_match(html, m.end() - 1)
+        if not blob:
+            continue
+        blob = re.sub(r"([{,]\s*)(\d{6,})(\s*:)", r'\1"\2"\3', blob)  # quote numeric keys
+        try:
+            data = json.loads(blob)
+        except json.JSONDecodeError:
+            continue
+        if set(data) == {"Products"} and isinstance(data["Products"], dict):
+            data = data["Products"]
+        recs = {str(k): v for k, v in data.items()
+                if isinstance(v, dict) and "Sku" in v}
+        if recs:
+            return recs
+    return {}
 
 
 def _description(soup: BeautifulSoup) -> str:
@@ -267,11 +273,19 @@ def _meta(soup: BeautifulSoup, name: str) -> str:
 
 
 def _images(soup: BeautifulSoup) -> list[str]:
+    """Product shots from the `assets*.oakley.com` CDN.
+
+    That CDN does Accept-header format negotiation: the default URL (and the
+    `?impolicy=...` transform URL) serves **AVIF**, which Shopify's media
+    pipeline rejects ("Media processing failed"). Appending any non-`impolicy`
+    query param (`?fmt=jpg`) disables negotiation and returns the origin PNG,
+    which Shopify accepts. Verified 2026-09-10.
+    """
     out = []
     for img in soup.select("img"):
         src = img.get("src") or img.get("data-src") or ""
         if "prod-onecp-record-files" in src:
-            out.append(src.split("?")[0])
+            out.append(src.split("?")[0] + "?fmt=jpg")
     return list(dict.fromkeys(out))
 
 

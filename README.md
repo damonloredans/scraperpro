@@ -12,9 +12,9 @@ pricing and risks.
 
 | Brand | Site | Platform | Products | Status |
 |-------|------|----------|----------|--------|
-| Princeton Tec | princetontec.com | WooCommerce (public Store API) | 72 | ✅ working — SKUs partial (see gap) |
-| Crispi (AU) | **crispiaustralia.com.au** | WooCommerce (public Store API) | **13** | ✅ working — per-size SKUs missing (see gap) |
-| Oakley SI | oakleysi.com/en-us | SAP Commerce Cloud + Akamai | ~1,400 | 🟡 discovery + PDP parser work; blocked by Akamai at volume |
+| Princeton Tec | princetontec.com | WooCommerce (public Store API) | 72 | working — SKUs partial (see gap) |
+| Crispi (AU) | **crispiaustralia.com.au** | WooCommerce (public Store API) | **13** | working — per-size SKUs missing (see gap) |
+| Oakley SI | oakleysi.com/en-us | SAP Commerce Cloud + Akamai | ~1,400 | partial - discovery + PDP parser done; Akamai blocks volume |
 
 > The brief wrote "Cirspi / cirspiaustralia.com.au" — that domain does not
 > resolve. The real site is **crispiaustralia.com.au** (brand *Crispi*).
@@ -42,7 +42,7 @@ python run.py oakleysi                     # not implemented yet (exits 1)
 
 Measured run times: **Princeton Tec 72 products ≈ 3 min**, **Crispi 13 products
 ≈ 40 s** (both network-bound, deliberately throttled). Oakley SI projected at
-~10–15 s/product → ~20–35 hrs of machine crawl for the full ~1,400-product
+~10-15 s/product -> ~20-35 hrs of machine crawl for the full ~1,400-product
 catalogue, spread over several days in batches.
 
 Output CSVs land in `output/` (git-ignored). Import with **Matrixify** (not the
@@ -64,8 +64,8 @@ run.py
 1. `GET /wp-json/wc/store/v1/products?per_page=100&page=N` — parent products.
 2. `GET /wp-json/wc/store/v1/products?type=variation&parent=<id>` — variation
    objects (sku, price, weight, images). Their `attributes` array is empty, so
-   option values are joined in from the parent's `attributes` (slug → display
-   name) and `variations` (id → slugs); falls back to parsing the variation
+   option values are joined in from the parent's `attributes` (slug -> display
+   name) and `variations` (id -> slugs); falls back to parsing the variation
    label string, then to synthesising the grid from parent attribute terms.
 3. Barcodes aren't in the Store API — fetch each product page, read `gtin` from
    its JSON-LD (blank when absent).
@@ -87,11 +87,11 @@ Recon 2026-09-10 (see `docs/quote.md` §3):
   LensTechnology, LensType, Category, ModelName, …}}` — **per-variant barcodes +
   attributes, no login**. Parsed with a brace-matcher (it's a JS object literal
   with unquoted numeric keys, not JSON).
-- **Price** is an empty `<format:price/>` placeholder logged-out → out of scope.
-- **No** SAP OCC/REST API (`/occ/v2/…` → search page).
+- **Price** is an empty `<format:price/>` placeholder logged-out -> out of scope.
+- **No** SAP OCC/REST API (`/occ/v2/...` -> search page).
 
 **What works:** category discovery (48 links/page, paginates `?q=…&page=N`) and
-the PDP parser. Pulled real products end to end — title, breadcrumb→Type, cleaned
+the PDP parser. Pulled real products end to end — title, breadcrumb -> Type, cleaned
 description + measurements, SEO description, image gallery, per-colour Sku/UPC.
 
 **What's stubbed:** apparel/footwear/goggle *size* explosion (eyewear is
@@ -105,7 +105,7 @@ Oakley SI sits behind **Akamai Bot Manager**. Observed behaviour:
 |--------|--------|
 | `requests` / WebFetch | HTTP 403 immediately |
 | `curl_cffi` (Chrome TLS/JA3 impersonation) | HTTP 200 for the first ~40–50 requests, then a 2.7 KB JS-challenge stub (still 200, no product data) |
-| Real / headless browser | runs the JS sensor → gets the `_abck` / `bm_sv` cookies → sustained access, but ~3–8 s/page and needs stealth patches (plain Selenium/Playwright is fingerprinted too) |
+| Real / headless browser | runs the JS sensor -> gets the `_abck` / `bm_sv` cookies -> sustained access, but ~3–8 s/page and needs stealth patches (plain Selenium/Playwright is fingerprinted too) |
 
 `fetch.py`'s `CurlCffiFetcher` throttles (3 s + jitter), and `expect=` detects
 the challenge stub (page missing `/en-us/product/` or `pdp-hero-name`) and backs

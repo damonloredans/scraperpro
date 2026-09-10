@@ -23,11 +23,11 @@ We will reproduce the exact header row from the sample verbatim.
 
 ```
 Product "vertx-10-inch-md-weight-vaporcore-crew-sock"
-├─ Row 1  → product-level fields + variant 1 + image 1
-├─ Row 2  → Handle + variant 2 fields + image 2
-├─ Row 3  → Handle + variant 3 fields + image 3
+├─ Row 1  -> product-level fields + variant 1 + image 1
+├─ Row 2  -> Handle + variant 2 fields + image 2
+├─ Row 3  -> Handle + variant 3 fields + image 3
 ├─ ...    (one row per variant)
-└─ Row N  → Handle + Image Src + Image Position only   (gallery overflow images)
+└─ Row N  -> Handle + Image Src + Image Position only  (gallery overflow images)
 ```
 
 - **Product-level fields** (Title, Body, Vendor, SEO, Options names, Status,
@@ -41,10 +41,10 @@ Product "vertx-10-inch-md-weight-vaporcore-crew-sock"
 | # | Column | Level | Fill rule | From sample |
 |---|--------|-------|-----------|-------------|
 | 1 | `Handle` | product (every row) | `slug(vendor + " " + title)`, lowercase, `[a-z0-9-]`, dedupe with `-2` | `vertx-10-inch-md-weight-vaporcore-crew-sock` |
-| 2 | `Title` | product (row 1) | Title Case; sample prefixes brand → `Vertx …` | `Vertx 10 Inch Md Weight Vaporcore Crew Sock` |
+| 2 | `Title` | product (row 1) | Title Case; sample prefixes brand -> `Vertx …` | `Vertx 10 Inch Md Weight Vaporcore Crew Sock` |
 | 3 | `Body (HTML)` | product (row 1) | Source description HTML. Sample keeps raw page-builder markup; our default is **cleaned** (strip `<style>`, wrapper `<div>`, keep `<h2>/<h3>/<ul>/<li>/<p>`). | large HTML blob |
 | 4 | `Vendor` | product (row 1) | Brand name | `Vertx` |
-| 5 | `Tags` | product (row 1) | Comma-separated. **Blank in sample** → leave blank unless client wants breadcrumb/category tags | *(empty)* |
+| 5 | `Tags` | product (row 1) | Comma-separated. **Blank in sample** - leave blank unless client wants breadcrumb/category tags | *(empty)* |
 | 6 | `SEO Title` | product (row 1) | Pattern `"{Title} {Vendor}"` (sometimes `+ " Official Site"`) | `Vertx 10 Inch Md Weight Vaporcore Crew Sock Vertx` |
 | 7 | `SEO Description` | product (row 1) | ~150–320 char plain-text lede pulled from the description | `Designed for Vertx® by the masters of merino …` |
 | 8 | `Published` | product (row 1) | `TRUE` in sample (note: `Status` is still `draft` — Matrixify lets both coexist; product stays unpublished until activated) | `TRUE` |
@@ -58,7 +58,7 @@ Product "vertx-10-inch-md-weight-vaporcore-crew-sock"
 | 16 | `Variant Weight Unit` | product (row 1) | `g` | `g` |
 | 17 | `Included / Australia` | product (row 1) | `TRUE` | `TRUE` |
 | 18 | `Included / International` | product (row 1) | `TRUE` | `TRUE` |
-| 19 | `Product Category` | product (row 1) | Shopify standard taxonomy. **Blank in sample** → leave blank (or map later) | *(empty)* |
+| 19 | `Product Category` | product (row 1) | Shopify standard taxonomy. **Blank in sample** - leave blank (or map later) | *(empty)* |
 | 20 | `Type` | product (row 1) | Custom type. **Blank in sample** | *(empty)* |
 | 21 | `Option1 Name` | product (row 1) | `Colour` for multi-colour products; `Title` for single-variant | `Colour` |
 | 22 | `Option1 Linked To` | product (row 1) | blank (only used for combined/linked listings) | *(empty)* |
@@ -66,7 +66,7 @@ Product "vertx-10-inch-md-weight-vaporcore-crew-sock"
 | 24 | `Option2 Linked To` | product (row 1) | blank | *(empty)* |
 | 25 | `Option3 Name` | product (row 1) | blank unless a 3rd axis (e.g. width) exists | *(empty)* |
 | 26 | `Option3 Linked To` | product (row 1) | blank | *(empty)* |
-| 27 | `Variant Compare At Price` | variant | **Blank in sample** (client sets pricing) | *(empty)* |
+| 27 | `Variant Compare At Price` | variant | Source `regular_price` **only when the source shows a markdown** (else blank) | *(empty)* |
 | 28 | `Image Alt Text` | image row | Alt text for the image in this row. Blank in sample rows; populate with `"{Title} - {Colour}"` where useful | *(empty)* |
 | 29 | `Option1 Value` | variant | Colour value (sample shows source colour name, e.g. `IT'S BLACK` / `SMOKE GREY` / `RANGER GREEN` / `DARK EARTH`) | `IT'S BLACK` |
 | 30 | `Option2 Value` | variant | Size value (`MEDIUM`, `LARGE`, `XLARGE` …) | `MEDIUM` |
@@ -75,7 +75,7 @@ Product "vertx-10-inch-md-weight-vaporcore-crew-sock"
 | 33 | `Variant Grams` | variant | Integer grams | `1000` |
 | 34 | `Variant Barcode` | variant | UPC/EAN/GTIN. Oakley SI: in product URL. Woo: JSON-LD `gtin` on PDP if present, else blank | `190449699597` |
 | 35 | `Variant Inventory Tracker` | variant | **Duplicate header** — same value as col 11 (`shopify`). Matrixify tolerates dup; fill identically | `shopify` |
-| 36 | `Variant Price` | variant | **Blank** — client sets retail price | *(empty)* |
+| 36 | `Variant Price` | variant | Source RRP where the site exposes it: **Princeton Tec** = `prices.price` (USD); **Crispi** = blank (API returns `0`); **Oakley SI** = blank (login-gated). Client applies FX/margin or overwrites — see quote §1 / §8. | *(empty in sample)* |
 | 37 | `Variant Requires Shipping` | variant | `TRUE` | `TRUE` |
 | 38 | `Variant Taxable` | variant | `TRUE` | `TRUE` |
 | 39 | `Image Src` | image row | Absolute image URL. Shopify fetches on import. First row = main image | `https://cdn.shopify.com/…/VTX9111_10inMDSock_IBK_3qtr_…jpg` |
@@ -113,8 +113,8 @@ Rows 96 / 109 in the sample (mesh pouches): no options.
 | Sheet column | Source |
 |--------------|--------|
 | Title | `products[].name` (brand-prefixed) |
-| Body (HTML) | `products[].description` → `clean_description()` |
-| Option1/2 Value | parent `attributes[].terms` (slug→name) joined to `variations` by id; fallback = variation label string; fallback = synth grid |
+| Body (HTML) | `products[].description` -> `clean_description()` |
+| Option1/2 Value | parent `attributes[].terms` (slugname) joined to `variations` by id; fallback = variation label string; fallback = synth grid |
 | Variant SKU | `type=variation` object `.sku` (partial — API under-reports) |
 | Variant Grams | variation `.weight` (kg) × 1000 |
 | Variant Barcode | JSON-LD `gtin*` on the product page (often absent) |
@@ -125,14 +125,14 @@ Rows 96 / 109 in the sample (mesh pouches): no options.
 | Sheet column | Source (all visible logged-out) |
 |--------------|--------------------------------|
 | Title | PDP `<h1>` |
-| Body (HTML) | overview + "Features & Technologies" + measurements blocks → cleaned |
+| Body (HTML) | overview + "Features & Technologies" + measurements blocks -> cleaned |
 | Vendor | `Oakley SI` |
 | Type / Product Category | PDP breadcrumb (`Eyewear > Sunglasses > On-Duty…`) |
 | Option1 Value (Colour) | `window.__utagProducts[upc].FrameColor` / `productObj`; card colour for apparel |
 | Option2 Value (Size) | size `<select>` (apparel/footwear/goggles); eyewear usually one-size |
 | Variant SKU | `__utagProducts[upc].Sku` (e.g. `OO9102-B9`) or style code |
 | Variant Barcode | UPC — `productObj.variants` keys / `?variant=<UPC>` links / `__utagProducts` key |
-| Variant Grams | not on PDP → blank unless found |
+| Variant Grams | not on PDP -> blank unless found |
 | Variant Price | **blank** — `<format:price/>` placeholder logged-out |
 | Image Src | gallery `/medias/…` or `assets.oakley.com/…` per colour |
 
