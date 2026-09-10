@@ -21,9 +21,9 @@ variant, SKU, barcode, weight, and images. Delivered as **draft** products in
 **two formats** — the Matrixify layout your sample uses, and a native Shopify CSV
 for the built-in importer — so your team can use whichever suits.
 
-Product images are **re-hosted** so they import cleanly (the brand CDNs serve a
-format Shopify rejects). Images sit on hosting I run for the import window, then
-come down.
+Product images are **re-hosted** so they import cleanly — Oakley's CDN serves a
+format Shopify rejects, so the images can't be imported straight from oakleysi.com.
+See question 7 for how you'd like them hosted.
 
 I've already test-imported into a scratch store and fixed three issues that would
 otherwise have surfaced on your side: variant option handling, image format, and
@@ -107,3 +107,19 @@ One revision round per brand is included.
 6. **Authorisation** — confirmation that Broad Arrow is an authorised
    stockist/reseller of these three brands and may list their catalogues and
    product images.
+7. **Oakley image hosting** — the ~12,000 Oakley images have to be served from
+   somewhere Shopify can fetch during import (they can't come straight from
+   oakleysi.com). Once a product imports, Shopify copies the image onto its own
+   CDN, so it's permanent from then on. The question is where they live *during*
+   the import:
+   - **A — I host them temporarily** (default): on a bucket I run, deleted after
+     your import is confirmed done. $0 cost. Only downside: if you re-import
+     later, after teardown, those URLs are gone and the images would need
+     re-hosting (small job).
+   - **B — I keep the bucket live longer** (e.g. 3–6 months) as a safety net for
+     re-imports. Still cheap; I'd pass through the hosting cost (a few AUD/month).
+   - **C — your infrastructure**: you give me a storage bucket or a Shopify
+     upload token and the images live on your side permanently, under your
+     control.
+   A is fine for most cases; pick B or C if you expect to re-run the import or
+   want the images on your own infra.

@@ -197,9 +197,21 @@ babysitting.
     with all three brands and the right to list their catalogues and use their
     photos/copy. Get it in writing + an indemnity clause. Client's
     responsibility.
-13. **Image bucket.** We host the ~12k Oakley images on our Cloudflare R2 for the
-    import window, then delete. Free tier, $0. One date needed from the client:
-    when their import is done.
+13. **Image hosting — client decision (BLOCKER).** The ~12k Oakley images must
+    be served from somewhere Shopify can fetch *during* the import (not straight
+    from oakleysi.com — AVIF). Shopify copies each image to its own CDN on a
+    successful import, so hosting is only needed for the import window itself.
+    Options to put to the client (see quote-for-howard.md Q7):
+    - **A (default):** our Cloudflare R2, deleted once they confirm the import is
+      done. $0. Risk: a re-import after teardown needs images re-hosted (~2 hrs).
+    - **B:** we keep R2 live 3–6 months as a re-import safety net. ~AUD $0–5/mo
+      (still likely free tier), passed through.
+    - **C:** client's own bucket or a Shopify upload token — images live on their
+      side permanently. If a Shopify token: we can upload straight to their
+      Shopify Files and skip our bucket entirely (+~2 hrs, but removes our
+      hosting dependency). Conflicts slightly with "scrape-only, no store
+      access" — needs a scoped token.
+    Confirm which before the full run. Default A unless they say otherwise.
 14. **Import method.** Sample is a **Matrixify** sheet (needs the Matrixify app).
     We also ship a **native Shopify CSV** for the free built-in importer — the
     client's team picks.
@@ -216,6 +228,8 @@ babysitting.
   range? (Risk 4)
 - Cleaned vs. raw descriptions (Risk 7).
 - Oakley: mirror source vs. group colourways (Risk 6).
+- **Oakley image hosting** — A (our temp bucket, default) / B (we keep it live
+  3–6 mo) / C (their bucket or a Shopify token). Risk 13.
 - **Pricing** — pick one:
   1. Leave `Variant Price` blank, price in Shopify after import.
   2. Give us a **margin formula** for Princeton Tec's USD RRP (e.g.
