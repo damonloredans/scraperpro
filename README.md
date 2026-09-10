@@ -138,14 +138,21 @@ the challenge stub (page missing `/en-us/product/` or `pdp-hero-name`) and backs
 off exponentially. That's enough for small batches; **not** enough for 1,400
 products from one IP in one sitting.
 
-Production options (in order of cost):
-1. **Cookie-seed**: open the site once in a real browser, copy the Akamai
-   cookies into the `curl_cffi` session, refresh when they expire (~30–60 min).
-   Fast bulk crawl (~1–2 s/page) between refreshes. Cheapest.
-2. **Residential proxy rotation** — each IP gets ~50 requests before cooldown, so
-   rotate. ~USD $5–15 for the whole catalogue in bandwidth.
-3. **Unblocker API** (ScraperAPI / Zyte / BrightData Web Unlocker) — hands back
-   solved HTML. ~USD $50–150 for the full catalogue, zero block-management.
+Getting past it for a full run — set **one** of these in `.env` (the fetcher
+picks it up automatically, no code change):
+
+| `.env` line | What | Cost |
+|-------------|------|------|
+| `SCRAPERAPI_KEY=...` | Unblocker API — ScraperAPI solves Akamai and returns the HTML. `make_fetcher()` routes every request through it. | **free tier = 5,000 credits**, covers all 1,541 |
+| `SCRAPER_PROXY=http://USER:PASS@gate.smartproxy.com:7000` | Rotating residential proxy — new exit IP per request; `curl_cffi` sends through it, throttle drops, block-abort threshold rises. | ~USD $5–15 bandwidth |
+| *(neither)* | Bare `curl_cffi` — works for ~40 requests from a rested IP, then blocks. Fine for testing with `--limit`. | free |
+
+Sign-ups: **scraperapi.com** (free tier, instant key) · **smartproxy.com** /
+**iproyal.com** / **brightdata.com** (residential, pay-as-you-go).
+
+A 4th option, no third party: open the site once in a real browser, copy the
+Akamai cookies (`_abck`, `bm_sv`), and `CurlCffiFetcher.seed_cookies()` them —
+good for ~30–60 min per capture.
 
 #### Why not "just Selenium / BeautifulSoup"?
 

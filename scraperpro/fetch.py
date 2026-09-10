@@ -24,20 +24,38 @@ _SOFT_BLOCK_MARKERS = ("security has been notified", "pardon our interruption",
                        "access to this page has been denied")
 
 
+def _dotenv_get(key: str, path: str = ".env") -> str | None:
+    if os.path.exists(path):
+        for line in open(path, encoding="utf-8"):
+            line = line.strip()
+            if line.startswith(f"{key}="):
+                return line.split("=", 1)[1].strip() or None
+    return None
+
+
 class BlockedError(RuntimeError):
     """Raised when the fetcher is persistently blocked — abort the whole run."""
 
 
 class CurlCffiFetcher:
     def __init__(self, impersonate: str = "chrome", throttle: float = 3.0,
-                 retries: int = 3, give_up_after: int = 3) -> None:
+                 retries: int = 2, give_up_after: int = 2, proxy: str | None = None) -> None:
         from curl_cffi import requests as cr  # lazy: optional dependency
-        self._session = cr.Session(impersonate=impersonate)
-        self.throttle = throttle
+        # proxy: a rotating-residential endpoint, e.g.
+        #   http://USER:PASS@gate.smartproxy.com:7000
+        # Set it here, or via the SCRAPER_PROXY env var / .env. With a rotating
+        # endpoint each request exits a different IP, so give_up_after can be high.
+        proxy = proxy or os.environ.get("SCRAPER_PROXY") or _dotenv_get("SCRAPER_PROXY")
+        kw = {"proxies": {"http": proxy, "https": proxy}} if proxy else {}
+        self._session = cr.Session(impersonate=impersonate, **kw)
+        self.proxied = bool(proxy)
+        self.throttle = throttle if not proxy else min(throttle, 0.5)
         self.retries = retries
-        self.give_up_after = give_up_after   # consecutive fully-failed GETs -> abort the run
+        self.give_up_after = give_up_after if not proxy else 8
         self._fails_in_a_row = 0
         self._last = 0.0
+        if proxy:
+            print(f"  [fetch] using proxy {proxy.split('@')[-1]}")
 
     def seed_cookies(self, cookies: dict) -> None:
         """Prime the session with Akamai cookies (_abck / bm_sv / ak_bmsc …)
@@ -74,6 +92,55 @@ class CurlCffiFetcher:
                 time.sleep(backoff)
         self._fails_in_a_row += 1
         raise RuntimeError(f"GET {url} failed after {self.retries} tries: {last}")
+
+
+class UnblockerFetcher:
+    """Routes every request through ScraperAPI, which solves Akamai and returns
+    the target page's HTML. Free tier = 5,000 credits (covers the 1,541 catalogue
+    even at ~2-3 credits/request). Set SCRAPERAPI_KEY in .env."""
+
+    ENDPOINT = "http://api.scraperapi.com/"
+
+    def __init__(self, key: str | None = None, throttle: float = 0.0) -> None:
+        import requests  # plain requests is fine — ScraperAPI is the one hitting Oakley
+        self._requests = requests
+        self.key = key or os.environ.get("SCRAPERAPI_KEY") or _dotenv_get("SCRAPERAPI_KEY")
+        if not self.key:
+            raise RuntimeError("SCRAPERAPI_KEY not set")
+        self.throttle = throttle
+        self._fails_in_a_row = 0
+        self.give_up_after = 5
+        print("  [fetch] using ScraperAPI unblocker")
+
+    def get(self, url: str, expect: str | None = None) -> str:
+        if self._fails_in_a_row >= self.give_up_after:
+            raise BlockedError("ScraperAPI returned unusable pages 5x in a row — "
+                               "check credit balance / try ultra_premium")
+        for attempt in range(3):
+            if self.throttle:
+                time.sleep(self.throttle)
+            try:
+                r = self._requests.get(self.ENDPOINT, params={
+                    "api_key": self.key, "url": url, "country_code": "us",
+                }, timeout=70)
+                if r.status_code == 200 and (expect is None or expect.lower() in r.text.lower()):
+                    self._fails_in_a_row = 0
+                    return r.text
+                last = f"HTTP {r.status_code}" if r.status_code != 200 else "missing expected content"
+            except Exception as e:  # noqa: BLE001
+                last = str(e)
+            print(f"      scraperapi retry {attempt + 1}/3 ({last})")
+            time.sleep(5)
+        self._fails_in_a_row += 1
+        raise RuntimeError(f"ScraperAPI GET {url} failed: {last}")
+
+
+def make_fetcher(**kw):
+    """SCRAPERAPI_KEY -> UnblockerFetcher; else CurlCffiFetcher (which auto-uses
+    SCRAPER_PROXY if set)."""
+    if os.environ.get("SCRAPERAPI_KEY") or _dotenv_get("SCRAPERAPI_KEY"):
+        return UnblockerFetcher()
+    return CurlCffiFetcher(**kw)
 
 
 class FixtureFetcher:

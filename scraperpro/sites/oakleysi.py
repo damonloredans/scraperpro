@@ -55,8 +55,8 @@ class OakleySIScraper:
 
     def __init__(self, fetcher=None, throttle: float = 1.5, fast: bool = False) -> None:
         if fetcher is None:
-            from ..fetch import CurlCffiFetcher
-            fetcher = CurlCffiFetcher(throttle=throttle)
+            from ..fetch import make_fetcher
+            fetcher = make_fetcher(throttle=throttle)
         self.fetch = fetcher
         self.handles = common.HandlePool()
         # fast mode: 1 page load per product (no per-colour ?variant= fetches).
