@@ -1,15 +1,11 @@
 #!/usr/bin/env python3
 """Re-host a scraped CSV's images to Cloudflare R2 and rewrite Image Src.
 
-    # 1. scrape + download the images first
-    python run.py oakleysi
-    python -c "from scraperpro.sites.oakleysi import OakleySIScraper; \
-               from scraperpro.fetch import CurlCffiFetcher; \
-               s=OakleySIScraper(); ps=s.run(); s.download_images(ps,'output/oakley_images')"
+    # 1. scrape + download the images  (needs .env with R2_* set)
+    python run.py oakleysi --images
 
-    # 2. convert -> upload -> rewrite
-    python tools/rehost_images.py output/oakleysi_shopify.csv \
-        --images output/oakley_images --prefix oakley
+    # 2. convert -> upload to R2 -> rewrite the CSV
+    python tools/rehost_images.py output/oakleysi_shopify.csv --prefix oakley
 
 Produces <csv>.r2.csv with Image Src / Variant Image pointing at
 https://pub-<hash>.r2.dev/<prefix>/<handle>/NN.jpg
@@ -71,7 +67,7 @@ def rehost(csv_path: str, images_dir: str, prefix: str) -> str:
 def main(argv):
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("csv", nargs="?", help="scraped CSV to rewrite")
-    ap.add_argument("--images", default="output/oakley_images")
+    ap.add_argument("--images", default="output/oakleysi_images")
     ap.add_argument("--prefix", default="oakley", help="R2 key prefix (folder)")
     ap.add_argument("--delete-prefix", metavar="PREFIX", help="teardown: delete all objects under PREFIX")
     a = ap.parse_args(argv)
