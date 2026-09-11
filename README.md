@@ -4,7 +4,7 @@ Scrapes a brand's public catalogue and writes a **Shopify product import sheet**
 in the Matrixify-style layout from `vertx_product_submission_sample.csv`
 (one row per variant, product fields on the first row, gallery rows after).
 
-Job: **Broad Arrow Tactical** (broadarrowtactical.com.au) — scrape the Oakley SI,
+Job: **Broad Arrow Tactical** (broadarrowtactical.com.au) - scrape the Oakley SI,
 Princeton Tec and Crispi catalogues into Shopify import sheets. **Scrape-only**:
 we deliver the CSVs + re-hosted images; the client's team runs the import (no
 access to their Shopify). See `docs/quote.md` for scope, pricing and risks.
@@ -13,16 +13,16 @@ access to their Shopify). See `docs/quote.md` for scope, pricing and risks.
 
 | Brand | Site | Platform | Products | Status |
 |-------|------|----------|----------|--------|
-| Princeton Tec | princetontec.com | WooCommerce (public Store API) | 72 | working — real per-variant SKUs, Store API exposes most (see gap) |
-| Crispi (AU) | **crispiaustralia.com.au** | WooCommerce (public Store API) | **13** | working — **no per-size SKUs exist** at source (see gap) |
+| Princeton Tec | princetontec.com | WooCommerce (public Store API) | 72 | working - real per-variant SKUs, Store API exposes most (see gap) |
+| Crispi (AU) | **crispiaustralia.com.au** | WooCommerce (public Store API) | **13** | working - **no per-size SKUs exist** at source (see gap) |
 | Oakley SI | oakleysi.com/en-us | SAP Commerce Cloud + Akamai | ~1,400 | partial - discovery + PDP parser done; Akamai blocks volume |
 
-> The brief wrote "Cirspi / cirspiaustralia.com.au" — that domain does not
+> The brief wrote "Cirspi / cirspiaustralia.com.au" - that domain does not
 > resolve. The real site is **crispiaustralia.com.au** (brand *Crispi*).
 >
 > **Crispi AU has only 13 products.** That is the complete `crispiaustralia.com.au`
 > catalogue (verified via the store API + category counts). Crispi *globally*
-> makes 40+ models — if Broad Arrow wants the full range, that's a different site
+> makes 40+ models - if Broad Arrow wants the full range, that's a different site
 > (crispi.com / crispioutdoor.com), not the AU distributor. Confirm with Howard.
 
 ## Setup
@@ -34,7 +34,7 @@ pip install -r requirements.txt
 
 ## Usage
 
-**Interactive:** double-click **`run.bat`** — it prompts for site, format, a
+**Interactive:** double-click **`run.bat`** - it prompts for site, format, a
 product limit (blank = all), and for Oakley whether to download + re-host images.
 
 **CLI:**
@@ -50,7 +50,7 @@ python run.py oakleysi --limit 50 --fast   # 1 request/product -> ~3x more produ
 
 `--fast` skips the per-colour page fetches: every colour still gets its barcode
 (it's on the main page) but colours 2+ have a generic label and no per-colour
-SKU. Testing lever only — the deliverable run uses full mode + proxies.
+SKU. Testing lever only - the deliverable run uses full mode + proxies.
 
 Re-runs **overwrite** that brand's CSV; a run that scrapes 0 products (e.g. an
 Akamai block) is **not** written, so the last good file survives. `--images`
@@ -66,8 +66,8 @@ Measured run times: **Princeton Tec 72 products ≈ 3 min**, **Crispi 13 product
 catalogue, spread over several days in batches.
 
 Output CSVs land in `output/` (git-ignored). Import with **Matrixify** (not the
-native Shopify importer — the column layout is Matrixify's). Everything imports
-as **draft** with a **blank price** — you set pricing in Shopify.
+native Shopify importer - the column layout is Matrixify's). Everything imports
+as **draft** with a **blank price** - you set pricing in Shopify.
 
 ## How it works
 
@@ -79,25 +79,25 @@ run.py
          └─ scraperpro/shopify_columns.py   the exact sheet layout + row expansion
 ```
 
-### WooCommerce path (Princeton Tec, Crispi) — implemented
+### WooCommerce path (Princeton Tec, Crispi) - implemented
 
-1. `GET /wp-json/wc/store/v1/products?per_page=100&page=N` — parent products.
-2. `GET /wp-json/wc/store/v1/products?type=variation&parent=<id>` — variation
+1. `GET /wp-json/wc/store/v1/products?per_page=100&page=N` - parent products.
+2. `GET /wp-json/wc/store/v1/products?type=variation&parent=<id>` - variation
    objects (sku, price, weight, images). Their `attributes` array is empty, so
    option values are joined in from the parent's `attributes` (slug -> display
    name) and `variations` (id -> slugs); falls back to parsing the variation
    label string, then to synthesising the grid from parent attribute terms.
-3. Barcodes aren't in the Store API — fetch each product page, read `gtin` from
+3. Barcodes aren't in the Store API - fetch each product page, read `gtin` from
    its JSON-LD (blank when absent).
 4. `clean_description()` strips page-builder scaffolding (Magento PageBuilder,
    Avada/Fusion Builder), keeps headings/lists/paragraphs.
 
-**Known gap — per-variant SKUs. Verified 2026-09-10, and the two brands differ:**
+**Known gap - per-variant SKUs. Verified 2026-09-10, and the two brands differ:**
 
-- **Princeton Tec** — real per-size SKUs exist. The Store API exposes most of them
+- **Princeton Tec** - real per-size SKUs exist. The Store API exposes most of them
   (e.g. 3/4 on Remix RGB); the occasional gap is fillable from the product page.
   Worth finishing.
-- **Crispi** — **there are no per-size SKUs to scrape.** Checked every layer:
+- **Crispi** - **there are no per-size SKUs to scrape.** Checked every layer:
   Store API `variations[]` is empty for most products; the one product that *does*
   expose all 11 variation objects (`Titan Evo EFX GTX`) returns the **same
   model-level code (`CR75T`) on every size**; the PDP has no
@@ -105,47 +105,47 @@ run.py
   `?wc-ajax=get_variation` endpoint is bot-walled. The finest SKU that exists is
   the **model-level code** (`CR65V-1`, `CR92H`, …), present for 11/13 products,
   blank for both Futuras. Synthesised size rows therefore can't get a real SKU.
-  Options (client decision — see `docs/quote.md` Risk 9): put the model-level SKU
+  Options (client decision - see `docs/quote.md` Risk 9): put the model-level SKU
   on every variant row (default), synthesise `CR75T-38`… by convention, or leave
   blank for Broad Arrow to assign. The sitemap has no SKU data (Rank Math URL
   list only).
 
-### Oakley SI path — partially built (`scraperpro/sites/oakleysi.py` + `scraperpro/fetch.py`)
+### Oakley SI path - partially built (`scraperpro/sites/oakleysi.py` + `scraperpro/fetch.py`)
 
 Recon 2026-09-10 (see `docs/quote.md` §3):
 
-- Product pages are **server-side rendered** — the HTML holds name, description,
+- Product pages are **server-side rendered** - the HTML holds name, description,
   features, measurements, breadcrumb, colours, style code, images.
 - Each PDP embeds `utag_data.Products = {<UPC>: {Sku, FrameColor, LensColor,
-  LensTechnology, LensType, Category, ModelName, …}}` — **per-variant barcodes +
+  LensTechnology, LensType, Category, ModelName, …}}` - **per-variant barcodes +
   attributes, no login**. Parsed with a brace-matcher (it's a JS object literal
   with unquoted numeric keys, not JSON).
 - **Price** is an empty `<format:price/>` placeholder logged-out -> out of scope.
 - **No** SAP OCC/REST API (`/occ/v2/...` -> search page).
 
 **What works:**
-- **Discovery via `/en-us/sitemap.xml`** — all **1,541 product URLs in one
+- **Discovery via `/en-us/sitemap.xml`** - all **1,541 product URLs in one
   request**, with `<lastmod>` for incremental runs. Falls back to the category
   crawl if the sitemap is unavailable.
-- **PDP parser** — title, `utag_data.product_category` -> Type, cleaned
+- **PDP parser** - title, `utag_data.product_category` -> Type, cleaned
   description + measurements, SEO description, image gallery, per-colour Sku/UPC.
   Ran end to end on real products.
-- **Circuit breaker** — after 3 Akamai-blocked requests in a row it aborts in
+- **Circuit breaker** - after 3 Akamai-blocked requests in a row it aborts in
   ~30 s and keeps what it scraped (was: 20+ min of exponential backoff).
 
 **What's stubbed:** apparel/footwear/goggle *size* explosion (eyewear is
 one-size); colourway grouping (currently one Shopify product per style code).
 Colour-name polish for softgoods.
 
-**Recon 2026-09-10 — the stubbed data is all in the SSR HTML; these are parser
+**Recon 2026-09-10 - the stubbed data is all in the SSR HTML; these are parser
 gaps, not blocked-data gaps:**
 
 | Field | Where it actually is (verified on live PDPs) | Status |
 |-------|----------------------------------------------|--------|
-| **Category / Type** | `utag_data.product_category` — a stable code (`oo_afa_foot_boot`, `oo_afa_app_topw_tshirt_lifestyle`) that survives promo breadcrumbs. The `.breadcrumb` path is unreliable (many products route through `Home / Landing / Holiday Gifts for Tactical Missions / …`). | ✅ **done** — `_product_type()` maps the code's most specific known segment to a Type; falls back to `data-sizecategory`, then a promo-filtered breadcrumb. `validate.py` promo-Type smells: 13/20 → 0. Segment map (`_CATEGORY_SEGMENTS`) extends as new codes surface in QA. |
-| **Sizes** | `<label class="size-button" data-size="M" data-variant="<13-digit EAN>" data-hasstock="true" data-sku="">` — one per size, repeated ~3× in the DOM. Boot `11190`: 16 sizes 6–13.5. Tee `FOA409350`: S–XXL. Per-size **barcode present**, per-size **SKU empty**. | ⬜ stubbed — `option2=""` today |
-| **Colour names** | Colour swatch links on the main page: `<a href="/en-us/product/<style>?variant=<UPC>" title="Blackout">` — the colour name is the **`title` attribute**, no extra fetch needed. `utag_data.Products[*].FrameColor` is **empty for softgoods** (only populated for eyewear), which is why the current fallback labels are junk. | ⬜ not started |
-| **Per-variant SKU** | `data-sku=""` on every size button; `utag` gives only the colour-level SKU (`FOA409350-02E`, `11190-02E`). Same situation as Crispi — no size-level SKU exists. | client decision |
+| **Category / Type** | `utag_data.product_category` - a stable code (`oo_afa_foot_boot`, `oo_afa_app_topw_tshirt_lifestyle`) that survives promo breadcrumbs. The `.breadcrumb` path is unreliable (many products route through `Home / Landing / Holiday Gifts for Tactical Missions / …`). | ✅ **done** - `_product_type()` maps the code's most specific known segment to a Type; falls back to `data-sizecategory`, then a promo-filtered breadcrumb. `validate.py` promo-Type smells: 13/20 → 0. Segment map (`_CATEGORY_SEGMENTS`) extends as new codes surface in QA. |
+| **Sizes** | `<label class="size-button" data-size="M" data-variant="<13-digit EAN>" data-hasstock="true" data-sku="">` - one per size, repeated ~3× in the DOM. Boot `11190`: 16 sizes 6–13.5. Tee `FOA409350`: S–XXL. Per-size **barcode present**, per-size **SKU empty**. | ⬜ stubbed - `option2=""` today |
+| **Colour names** | Colour swatch links on the main page: `<a href="/en-us/product/<style>?variant=<UPC>" title="Blackout">` - the colour name is the **`title` attribute**, no extra fetch needed. `utag_data.Products[*].FrameColor` is **empty for softgoods** (only populated for eyewear), which is why the current fallback labels are junk. | ⬜ not started |
+| **Per-variant SKU** | `data-sku=""` on every size button; `utag` gives only the colour-level SKU (`FOA409350-02E`, `11190-02E`). Same situation as Crispi - no size-level SKU exists. | client decision |
 | **Weights** | Confirmed **not on the PDP** anywhere. Stays blank unless the client supplies a source. | blank |
 
 #### The Akamai wall
@@ -163,31 +163,31 @@ the challenge stub (page missing `/en-us/product/` or `pdp-hero-name`) and backs
 off exponentially. That's enough for small batches; **not** enough for 1,400
 products from one IP in one sitting.
 
-Getting past it for a full run — set **one** of these in `.env` (the fetcher
+Getting past it for a full run - set **one** of these in `.env` (the fetcher
 picks it up automatically, no code change):
 
 | `.env` line | What | Cost |
 |-------------|------|------|
-| `SCRAPERAPI_KEY=...` | Unblocker API — ScraperAPI solves Akamai and returns the HTML. `make_fetcher()` routes every request through it. | **free tier = 5,000 credits**, covers all 1,541 |
-| `SCRAPER_PROXY=http://USER:PASS@gate.smartproxy.com:7000` | Rotating residential proxy — new exit IP per request; `curl_cffi` sends through it, throttle drops, block-abort threshold rises. | ~USD $5–15 bandwidth |
-| *(neither)* | Bare `curl_cffi` — works for ~40 requests from a rested IP, then blocks. Fine for testing with `--limit`. | free |
+| `SCRAPERAPI_KEY=...` | Unblocker API - ScraperAPI solves Akamai and returns the HTML. `make_fetcher()` routes every request through it. | **free tier = 5,000 credits**, covers all 1,541 |
+| `SCRAPER_PROXY=http://USER:PASS@gate.smartproxy.com:7000` | Rotating residential proxy - new exit IP per request; `curl_cffi` sends through it, throttle drops, block-abort threshold rises. | ~USD $5–15 bandwidth |
+| *(neither)* | Bare `curl_cffi` - works for ~40 requests from a rested IP, then blocks. Fine for testing with `--limit`. | free |
 
 Sign-ups: **scraperapi.com** (free tier, instant key) · **smartproxy.com** /
 **iproyal.com** / **brightdata.com** (residential, pay-as-you-go).
 
 A 4th option, no third party: open the site once in a real browser, copy the
-Akamai cookies (`_abck`, `bm_sv`), and `CurlCffiFetcher.seed_cookies()` them —
+Akamai cookies (`_abck`, `bm_sv`), and `CurlCffiFetcher.seed_cookies()` them -
 good for ~30–60 min per capture.
 
 #### Why not "just Selenium / BeautifulSoup"?
 
-- **BeautifulSoup is already the parser here.** It has no network layer — it
+- **BeautifulSoup is already the parser here.** It has no network layer - it
   can't fetch anything, so it can't be blocked *or* get past a block. Something
   else (requests / curl_cffi / a browser) fetches the HTML and hands it to BS4.
-- **Selenium (a real browser) does help** — it runs Akamai's JS sensor, so it
+- **Selenium (a real browser) does help** - it runs Akamai's JS sensor, so it
   gets the cookies a plain HTTP client can't. But it's 3–8 s/page vs ~1 s, it's
   heavy for ~1,400 pages, and vanilla Selenium/Playwright is itself fingerprinted
-  (`navigator.webdriver`, headless quirks, canvas) — you still need
+  (`navigator.webdriver`, headless quirks, canvas) - you still need
   `undetected-chromedriver` / stealth / a real profile. So the strategy is: fast
   path (curl_cffi, or curl_cffi + browser-seeded cookies) for the bulk, browser
   only where it gets challenged. `fetch.py` is the swap point.
@@ -208,7 +208,7 @@ python tools/validate.py output/oakleysi_shopify.csv --images 40 # + HEAD-check 
 python tools/validate.py output/oakleysi_shopify.csv --sitemap   # + flag sitemap products not in the sheet
 ```
 
-Reports **BLOCKERS** (things Shopify's importer silently rejects — no Title,
+Reports **BLOCKERS** (things Shopify's importer silently rejects - no Title,
 duplicate variant options, Option2-without-Option1) and **SMELLS** (no images,
 bad prices, promo-collection Type values). Exits non-zero on any blocker.
 
@@ -219,25 +219,25 @@ Scope / pricing / risks: **`docs/quote.md`**.
 
 ## Import gotchas (found in live Shopify testing, 2026-09-10)
 
-- **Princeton Tec** — imports clean (Matrixify format), with USD prices.
-- **Crispi imported "0 products added"** — cause: size-only products had
+- **Princeton Tec** - imports clean (Matrixify format), with USD prices.
+- **Crispi imported "0 products added"** - cause: size-only products had
   `Option2 Name` set with `Option1 Name` empty, which Shopify silently rejects.
-  **Fixed** — options now pack into Option1 first (`_resolve_options`), so a
+  **Fixed** - options now pack into Option1 first (`_resolve_options`), so a
   size-only boot is `Option1 Name = Size`. Also dropped the sample's stray
   trailing space in `"Size "`.
-- **Oakley images: "Media processing failed"** — `assets*.oakley.com` does
+- **Oakley images: "Media processing failed"** - `assets*.oakley.com` does
   Accept-header negotiation and serves **AVIF**, which Shopify rejects. Any
   query param forces the origin PNG, but that doesn't survive Shopify's CSV
   importer (it drops the query, and/or Akamai blocks Shopify's fetcher IPs).
   Downloading Oakley images through a browser also gives AVIF-with-a-`.png`-name,
-  which Shopify Files rejects too. **Oakley images must be re-hosted** — see the
+  which Shopify Files rejects too. **Oakley images must be re-hosted** - see the
   next section. Verified working: origin PNG -> flatten to white JPEG -> serve
   from our own bucket -> Shopify imports fine. Woo image URLs import as-is.
-- **Oakley description had duplicate measurements** — the `.singleContent` block
-  already contains the frame/lens measurements; **fixed** — we no longer append
+- **Oakley description had duplicate measurements** - the `.singleContent` block
+  already contains the frame/lens measurements; **fixed** - we no longer append
   the separate `.sizeText` block when they're already present.
 
-## Oakley image re-hosting (Option A — our bucket)
+## Oakley image re-hosting (Option A - our bucket)
 
 This is a **scrape-only** engagement: we deliver CSVs + images; the client's team
 runs the Shopify import. So we can't put images in *their* Shopify Files. Instead
@@ -246,7 +246,7 @@ import window, then tear down.
 
 Pipeline (the ~6 hr Oakley "image rehosting" line in the quote):
 
-1. `OakleySIScraper.download_images(products, out_dir)` — pulls every image as
+1. `OakleySIScraper.download_images(products, out_dir)` - pulls every image as
    origin PNG (sends a plain `Accept` header so the CDN doesn't return AVIF).
 2. Convert PNG -> JPEG, flatten transparency onto white, cap at ~1600 px,
    q≈85 (drops ~1 MB PNGs to ~80 KB).
@@ -257,7 +257,7 @@ Pipeline (the ~6 hr Oakley "image rehosting" line in the quote):
 
 What we need to set this up (all self-serve, nothing from the client):
 
-- A Cloudflare account, R2 enabled (free tier: 10 GB storage, 1 M writes/mo —
+- A Cloudflare account, R2 enabled (free tier: 10 GB storage, 1 M writes/mo -
   the whole catalogue is ~1–2 GB / ~14 k files, so **$0**).
 - An R2 API token (Object Read & Write) -> Account ID + Access Key + Secret.
 - The bucket set to **public** (r2.dev public URL, or a custom domain).
@@ -269,12 +269,12 @@ DigitalOcean Spaces ($5/mo). Same `boto3` code.
 
 ## Other known limitations
 
-- **Oakley SI** — Akamai blocks sustained crawling from one IP (see "The Akamai
+- **Oakley SI** - Akamai blocks sustained crawling from one IP (see "The Akamai
   wall"). Needs cookie-seeding / proxies / an unblocker for the full ~1,400.
-  Apparel/footwear size explosion is stubbed (eyewear is one-size) — data is
+  Apparel/footwear size explosion is stubbed (eyewear is one-size) - data is
   present in the SSR HTML, see the recon table above.
 - **Per-variant SKUs:** Princeton Tec has real ones (mostly via Store API);
-  Crispi and Oakley softgoods have **no size-level SKU at source** — model /
+  Crispi and Oakley softgoods have **no size-level SKU at source** - model /
   colour-level code only. See the per-brand gap notes above.
 - Gallery images attached to variant rows positionally; colour-accurate pinning
   uses `Variant Image`.

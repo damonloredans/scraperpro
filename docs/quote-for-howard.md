@@ -1,4 +1,4 @@
-# Product Catalogue -> Shopify Import — Quote
+# Product Catalogue -> Shopify Import - Quote
 
 **For:** Broad Arrow Tactical
 **Brands:** Oakley SI · Princeton Tec · Crispi
@@ -18,10 +18,10 @@ product import file matching your Vertx sample sheet:
 
 Per product: title, description, SEO fields, options (colour / size), one row per
 variant, SKU, barcode, weight, and images. Delivered as **draft** products in
-**two formats** — the Matrixify layout your sample uses, and a native Shopify CSV
-for the built-in importer — so your team can use whichever suits.
+**two formats** - the Matrixify layout your sample uses, and a native Shopify CSV
+for the built-in importer - so your team can use whichever suits.
 
-Product images are **re-hosted** so they import cleanly — Oakley's CDN serves a
+Product images are **re-hosted** so they import cleanly - Oakley's CDN serves a
 format Shopify rejects, so the images can't be imported straight from oakleysi.com.
 See question 7 for how you'd like them hosted.
 
@@ -35,8 +35,8 @@ description formatting.
 
 A working codebase is already in place, not starting from zero:
 
-- **Framework + Princeton Tec + Crispi** — scrapers working, products import cleanly
-- **Oakley SI** — product discovery, bot-protection handling, the page parser, and
+- **Framework + Princeton Tec + Crispi** - scrapers working, products import cleanly
+- **Oakley SI** - product discovery, bot-protection handling, the page parser, and
   the image-hosting pipeline are all **built and proven against a live Shopify
   import**
 - Confirmed the Oakley catalogue is **1,541 products**
@@ -44,11 +44,11 @@ A working codebase is already in place, not starting from zero:
 Remaining: Oakley apparel/footwear size variants, category and colour-name
 cleanup, finishing Princeton Tec's per-size product codes, the full catalogue
 run, and QA across all 1,541 products. (Crispi and Oakley clothing/footwear
-don't publish a separate code per size — see question 8.)
+don't publish a separate code per size - see question 8.)
 
 ---
 
-## Timeline — ~3 weeks
+## Timeline - ~3 weeks
 
 | Week | Deliverable |
 |------|-------------|
@@ -64,22 +64,22 @@ The three brands are not the same amount of work:
 
 | | Princeton Tec + Crispi | Oakley SI |
 |---|---|---|
-| Platform | WooCommerce — has a built-in public product feed | Enterprise platform (SAP), **no feed** — every product read from its own web page |
+| Platform | WooCommerce - has a built-in public product feed | Enterprise platform (SAP), **no feed** - every product read from its own web page |
 | Products | 85 combined | **1,541** |
-| Access | open | **commercial bot protection (Akamai)** — the site actively blocks automated access; needs a paid unblocking service (the ~$75 line below) |
-| Images | import straight from the source | Oakley's image servers send a format Shopify rejects — all **~12,000 images** must be downloaded, converted and re-hosted |
+| Access | open | **commercial bot protection (Akamai)** - the site actively blocks automated access; needs a paid unblocking service (the ~$75 line below) |
+| Images | import straight from the source | Oakley's image servers send a format Shopify rejects - all **~12,000 images** must be downloaded, converted and re-hosted |
 | Effort share | ~15% | ~85% |
 
 Princeton Tec and Crispi are a few days' work. Oakley is a catalogue-scale build:
 1,541 pages to read and parse, bot protection to get through, 12,000 images to
-re-host, and QA across the whole catalogue — which is the single biggest task,
+re-host, and QA across the whole catalogue - which is the single biggest task,
 because at that volume you can't just eyeball it.
 
 ## Price (AUD)
 
 **Fixed: $2,000** for all three brands as scoped.
 
-Plus **~$75** for a scraping-proxy subscription needed for the Oakley crawl —
+Plus **~$75** for a scraping-proxy subscription needed for the Oakley crawl -
 billed at cost with the receipt, cancelled once the job is delivered.
 
 ### Phased alternative
@@ -87,8 +87,8 @@ billed at cost with the receipt, cancelled once the job is delivered.
 | Phase | Scope | AUD |
 |-------|-------|-----|
 | 1 | Princeton Tec + Crispi | $350 |
-| 2 | Oakley SI — eyewear (~960 products) | $900 |
-| 3 | Oakley SI — apparel, accessories, footwear, goggles (~580) | $750 |
+| 2 | Oakley SI - eyewear (~960 products) | $900 |
+| 3 | Oakley SI - apparel, accessories, footwear, goggles (~580) | $750 |
 | | **All phases** | **$2,000** |
 
 Phase 1 lands first so you can see the import working before committing to 2–3.
@@ -107,46 +107,46 @@ One revision round per brand is included.
 
 ## To confirm before I start
 
-1. **Sample sheet** — is the Vertx format final? And do you import via the
+1. **Sample sheet** - is the Vertx format final? And do you import via the
    Matrixify app or Shopify's built-in importer? (I deliver both, just want to
    know which to prioritise.)
-2. **Crispi** — crispiaustralia.com.au lists 13 products; that's the whole site.
+2. **Crispi** - crispiaustralia.com.au lists 13 products; that's the whole site.
    Crispi globally makes 40+ models. Is the AU site the target, or the full
    range (a different website)?
-3. **Descriptions** — cleaned (tidied HTML, keeping headings/lists/copy) or the
+3. **Descriptions** - cleaned (tidied HTML, keeping headings/lists/copy) or the
    raw source markup as your sample has it?
-4. **Oakley colours** — Oakley lists each colour of a model as its own product
+4. **Oakley colours** - Oakley lists each colour of a model as its own product
    page. Keep that (one Shopify product per colour), or group them into one
    product with a colour dropdown?
-5. **Pricing** — the `Variant Price` column is blank in your sample. Options:
+5. **Pricing** - the `Variant Price` column is blank in your sample. Options:
    leave it blank and price in Shopify; or I apply a margin formula to Princeton
    Tec's listed prices (Oakley and Crispi don't publish prices, so those stay
    blank regardless).
-6. **Authorisation** — confirmation that Broad Arrow is an authorised
+6. **Authorisation** - confirmation that Broad Arrow is an authorised
    stockist/reseller of these three brands and may list their catalogues and
    product images.
-7. **Oakley image hosting** — the ~12,000 Oakley images have to be served from
+7. **Oakley image hosting** - the ~12,000 Oakley images have to be served from
    somewhere Shopify can fetch during import (they can't come straight from
    oakleysi.com). Once a product imports, Shopify copies the image onto its own
    CDN, so it's permanent from then on. The question is where they live *during*
    the import:
-   - **A — I host them temporarily** (default): on a bucket I run, deleted after
+   - **A - I host them temporarily** (default): on a bucket I run, deleted after
      your import is confirmed done. $0 cost. Only downside: if you re-import
      later, after teardown, those URLs are gone and the images would need
      re-hosting (small job).
-   - **B — I keep the bucket live longer** (e.g. 3–6 months) as a safety net for
+   - **B - I keep the bucket live longer** (e.g. 3–6 months) as a safety net for
      re-imports. Still cheap; I'd pass through the hosting cost (a few AUD/month).
-   - **C — your infrastructure**: you give me a storage bucket or a Shopify
+   - **C - your infrastructure**: you give me a storage bucket or a Shopify
      upload token and the images live on your side permanently, under your
      control.
    A is fine for most cases; pick B or C if you expect to re-run the import or
    want the images on your own infra.
 
 8. **Product codes / SKUs.** These vary by brand:
-   - **Princeton Tec** publishes a real SKU for each size — those come through.
+   - **Princeton Tec** publishes a real SKU for each size - those come through.
    - **Crispi** only publishes one code per boot *model* (e.g. `CR92H` for the
      Hunter GTX, all sizes), and two models have no code at all. There is no
-     per-size code to capture — it doesn't exist on their site.
+     per-size code to capture - it doesn't exist on their site.
    - **Oakley** publishes a code per *colour* (not per size) for clothing and
      footwear; sunglasses have a code per colour as well. Every size does have a
      barcode, which we capture.
