@@ -47,7 +47,7 @@ Oakley clothing/footwear don't publish a separate code per size - see question 6
 
 | Week | Deliverable |
 |------|-------------|
-| 0–1 | Developing and testing the scraper |
+| 0-1 | Developing and testing the scraper |
 | 1 | Princeton Tec + Crispi files delivered · Oakley sample (~50 products) for your review |
 | 1-2 | Oakley full catalogue run · first complete file |
 | 3 | QA across the catalogue, fixes, final consolidated delivery + handover |
