@@ -24,7 +24,7 @@ for the built-in importer - so you can use whichever suits.
 Product images may need to be **re-hosted** to import cleanly - Oakley's
 media host aren't in a format Shopify accepts directly. I tried importing
 them straight through and it didn't work, so re-hosting is likely the way
-through. See question 6 for how you'd like them hosted.
+through. See question 5 for how you'd like them hosted.
 
 ---
 
@@ -41,7 +41,7 @@ A working codebase for the framework is already in place, not starting from zero
 - Confirmed the Oakley catalogue is **1,541 products**
 
 Remaining: building out the Oakley scraper against the live site. (Crispi and
-Oakley clothing/footwear don't publish a separate code per size - see question 7.)
+Oakley clothing/footwear don't publish a separate code per size - see question 6.)
 
 ---
 
@@ -101,16 +101,14 @@ Phase 1 lands first so you can see the import working before committing to 2–3
 2. **Crispi** - crispiaustralia.com.au lists 13 products; that's the whole site.
    Crispi globally makes 40+ models. Is the AU site the target, or the full
    range (a different website)?
-3. **Descriptions** - cleaned (tidied HTML, keeping headings/lists/copy) or the
-   raw source markup as your sample has it?
-4. **Oakley colours** - Oakley lists each colour of a model as its own product
+3. **Oakley colours** - Oakley lists each colour of a model as its own product
    page. Keep that (one Shopify product per colour), or group them into one
    product with a colour dropdown?
-5. **Pricing** - the `Variant Price` column is blank in the sample. Options:
+4. **Pricing** - the `Variant Price` column is blank in the sample. Options:
    leave it blank and price in Shopify; or I apply a margin formula to Princeton
    Tec's listed prices (Oakley and Crispi don't publish prices, so those stay
    blank regardless).
-6. **Oakley image hosting** - the Oakley images may need to be served from
+5. **Oakley image hosting** - the Oakley images may need to be served from
    somewhere Shopify can fetch during import. Once a product imports, Shopify
    copies the image onto its own CDN, so it's permanent from then on. The
    question is where they live *during* the import:
@@ -124,7 +122,7 @@ Phase 1 lands first so you can see the import working before committing to 2–3
    A is fine for most cases; pick B or C if you expect to re-run the import or
    want the images on your own infra.
 
-7. **Product codes / SKUs.** These vary by brand:
+6. **Product codes / SKUs.** These vary by brand:
    - **Princeton Tec** publishes a real SKU for each size - those come through.
    - **Crispi** only publishes one code per boot *model* (e.g. `CR92H` for the
      Hunter GTX, all sizes), and two models have no code at all. There is no
