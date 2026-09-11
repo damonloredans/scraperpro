@@ -56,7 +56,7 @@ Oakley clothing/footwear don't publish a separate code per size - see question 7
 
 ---
 
-## Why Oakley is most of the cost
+## Oakley's load
 
 The three brands are not the same amount of work:
 
@@ -94,7 +94,7 @@ Phase 1 lands first so you can see the import working before committing to 2–3
 
 ---
 
-## To confirm before I start
+## A few confirmations
 
 1. **Sample sheet** - is the Vertx format final? And do you import via the
    Matrixify app or Shopify's built-in importer? (I deliver both, just want to
