@@ -35,9 +35,7 @@ A working codebase for the framework is already in place, not starting from zero
 - **Framework + Princeton Tec + Crispi** - scrapers built and working, products
   import cleanly into a live Shopify store during testing
 - **Oakley SI** - the approach is mapped out: product discovery, bot-protection
-  handling, the page parser, and the image-hosting pipeline have each been
-  designed and proven on their own, but not yet run against Oakley's live
-  catalogue
+  handling, the page parser, and the image-hosting pipeline
 - Confirmed the Oakley catalogue is **1,541 products**
 
 Remaining: building out the Oakley scraper against the live site. (Crispi and
