@@ -77,11 +77,11 @@ because at that volume you can't just eyeball it.
 
 ## Price (AUD)
 
-**Fixed: $2,000** for all three brands as scoped — includes the ~$75 scraping
+**Fixed: $2,000** for all three brands as scoped - includes the ~$75 scraping
 service needed for the Oakley crawl (collected as part of the Oakley payment
 below, cancelled once the job is delivered).
 
-Open to negotiating this — lower or higher — depending on how you see the
+Open to negotiating this, lower or higher, depending on how you see the
 scope of the project.
 
 ### Phased alternative
@@ -97,7 +97,7 @@ Phase 1 lands first so you can see the import working before committing to 2–3
 
 ### Payment
 
-Work is already underway — the framework, Princeton Tec, and Crispi are built,
+Work is already underway, the framework, Princeton Tec, and Crispi are built,
 and Oakley's been recon'd end to end. Nothing due upfront; payment follows
 delivered work:
 
