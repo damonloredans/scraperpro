@@ -106,8 +106,11 @@ relationship. A Western scraping agency quotes this kind of job at
 | **Labour total** | **~89** | **≈ $2,000** |
 | Data infrastructure | — | **~AUD $75** — one month of ScraperAPI's Hobby plan (USD $49 / 100k credits) covers the full crawl **plus dev re-runs** with huge headroom; cancelled on delivery. R2 image hosting is free tier ($0). Billed at cost with the receipt. |
 
-**Client-facing offer:** *fixed at* **AUD $2,000** labour + **~$75 infrastructure
-at cost** for all three brands as scoped. Out-of-scope work at $22/hr.
+**Client-facing offer:** *fixed at* **AUD $2,000 total** for all three brands as
+scoped — infra (~$75) folded into that number, not billed as an add-on, and
+collected as part of the Oakley milestone. Out-of-scope work at $22/hr.
+Pitched to Howard as negotiable (up or down) — audition, hold the relationship
+over the exact figure.
 
 ### Phased option (lower risk for both sides)
 
@@ -123,13 +126,16 @@ Phase 1 lands first so the client sees the import working before committing to
 
 ### Invoice schedule
 
+No on-sign-off deposit — the ~32 hrs of work to date (framework, PT + Crispi,
+Oakley recon) is unbilled and absorbed into the two delivery milestones below,
+not charged separately. Lower cash-flow cushion for us, but no upfront ask of
+the client while this is still an audition.
+
 | Milestone | AUD |
 |-----------|-----|
-| On sign-off (work to date) | $500 |
-| Princeton Tec + Crispi files (week 1) | $400 |
-| Oakley SI + final consolidated delivery | $1,100 |
-| Infrastructure (ScraperAPI receipt) | ~$75 at cost |
-| **Total** | **$2,000 + ~$75** |
+| Princeton Tec + Crispi files (week 1) | $900 |
+| Oakley SI + final consolidated delivery | $1,100 (incl. ~$75 ScraperAPI, receipt on request) |
+| **Total** | **$2,000** |
 
 ---
 

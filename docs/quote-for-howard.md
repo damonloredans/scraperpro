@@ -23,7 +23,7 @@ for the built-in importer - so your team can use whichever suits.
 
 Product images are **re-hosted** so they import cleanly - Oakley's CDN serves a
 format Shopify rejects, so the images can't be imported straight from oakleysi.com.
-See question 7 for how you'd like them hosted.
+See question 6 for how you'd like them hosted.
 
 I've already test-imported into a scratch store and fixed three issues that would
 otherwise have surfaced on your side: variant option handling, image format, and
@@ -44,7 +44,7 @@ A working codebase is already in place, not starting from zero:
 Remaining: Oakley apparel/footwear size variants, category and colour-name
 cleanup, finishing Princeton Tec's per-size product codes, the full catalogue
 run, and QA across all 1,541 products. (Crispi and Oakley clothing/footwear
-don't publish a separate code per size - see question 8.)
+don't publish a separate code per size - see question 7.)
 
 ---
 
@@ -66,7 +66,7 @@ The three brands are not the same amount of work:
 |---|---|---|
 | Platform | WooCommerce - has a built-in public product feed | Enterprise platform (SAP), **no feed** - every product read from its own web page |
 | Products | 85 combined | **1,541** |
-| Access | open | **commercial bot protection (Akamai)** - the site actively blocks automated access; needs a paid unblocking service (the ~$75 line below) |
+| Access | open | **commercial bot protection (Akamai)** - the site actively blocks automated access; needs a paid unblocking service (~$75, folded into the Oakley payment below) |
 | Images | import straight from the source | Oakley's image servers send a format Shopify rejects - all **~12,000 images** must be downloaded, converted and re-hosted |
 | Effort share | ~15% | ~85% |
 
@@ -77,10 +77,12 @@ because at that volume you can't just eyeball it.
 
 ## Price (AUD)
 
-**Fixed: $2,000** for all three brands as scoped.
+**Fixed: $2,000** for all three brands as scoped — includes the ~$75 scraping
+service needed for the Oakley crawl (collected as part of the Oakley payment
+below, cancelled once the job is delivered).
 
-Plus **~$75** for a scraping-proxy subscription needed for the Oakley crawl -
-billed at cost with the receipt, cancelled once the job is delivered.
+Open to negotiating this — lower or higher — depending on how you see the
+scope of the project.
 
 ### Phased alternative
 
@@ -95,11 +97,14 @@ Phase 1 lands first so you can see the import working before committing to 2–3
 
 ### Payment
 
+Work is already underway — the framework, Princeton Tec, and Crispi are built,
+and Oakley's been recon'd end to end. Nothing due upfront; payment follows
+delivered work:
+
 | | AUD |
 |--|-----|
-| On start | $500 |
-| Princeton Tec + Crispi delivered | $400 |
-| Oakley SI + final delivery | $1,100 + ~$75 infra |
+| Princeton Tec + Crispi delivered | $900 |
+| Oakley SI + final delivery | $1,100 (includes the ~$75 infra cost) |
 
 One revision round per brand is included.
 
@@ -122,10 +127,7 @@ One revision round per brand is included.
    leave it blank and price in Shopify; or I apply a margin formula to Princeton
    Tec's listed prices (Oakley and Crispi don't publish prices, so those stay
    blank regardless).
-6. **Authorisation** - confirmation that Broad Arrow is an authorised
-   stockist/reseller of these three brands and may list their catalogues and
-   product images.
-7. **Oakley image hosting** - the ~12,000 Oakley images have to be served from
+6. **Oakley image hosting** - the ~12,000 Oakley images have to be served from
    somewhere Shopify can fetch during import (they can't come straight from
    oakleysi.com). Once a product imports, Shopify copies the image onto its own
    CDN, so it's permanent from then on. The question is where they live *during*
@@ -142,7 +144,7 @@ One revision round per brand is included.
    A is fine for most cases; pick B or C if you expect to re-run the import or
    want the images on your own infra.
 
-8. **Product codes / SKUs.** These vary by brand:
+7. **Product codes / SKUs.** These vary by brand:
    - **Princeton Tec** publishes a real SKU for each size - those come through.
    - **Crispi** only publishes one code per boot *model* (e.g. `CR92H` for the
      Hunter GTX, all sizes), and two models have no code at all. There is no
