@@ -53,8 +53,8 @@ publish a separate code per size - see question 7.)
 | Week | Deliverable |
 |------|-------------|
 | 1 | Princeton Tec + Crispi files delivered · Oakley sample (~50 products) for your review |
-| 1/2 | Oakley full catalogue run · first complete file |
-| 2/3 | QA across the catalogue, fixes, final consolidated delivery + handover |
+| 1-2 | Oakley full catalogue run · first complete file |
+| 2-3 | QA across the catalogue, fixes, final consolidated delivery + handover |
 
 ---
 
