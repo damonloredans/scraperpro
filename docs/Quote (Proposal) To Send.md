@@ -19,34 +19,28 @@ product import file matching your Vertx sample sheet:
 Per product: title, description, SEO fields, options (colour / size), one row per
 variant, SKU, barcode, weight, and images. Delivered as **draft** products in
 **two formats** - the Matrixify layout your sample uses, and a native Shopify CSV
-for the built-in importer - so your team can use whichever suits.
+for the built-in importer - so you can use whichever suits.
 
 Product images may need to be **re-hosted** to import cleanly - Oakley's
-source images aren't in a format Shopify accepts directly. I tried importing
+media host aren't in a format Shopify accepts directly. I tried importing
 them straight through and it didn't work, so re-hosting is likely the way
 through. See question 6 for how you'd like them hosted.
-
-I've already test-imported Princeton Tec and Crispi into a scratch store and
-fixed two issues that would otherwise have surfaced on your side: variant
-option handling and description formatting.
 
 ---
 
 ## Progress so far
 
-A working codebase is already in place, not starting from zero:
+A working codebase for the framework is already in place, not starting from zero:
 
 - **Framework + Princeton Tec + Crispi** - scrapers built and working, products
-  import cleanly into a live Shopify store
+  import cleanly into a live Shopify store during testing
 - **Oakley SI** - the approach is mapped out: product discovery, bot-protection
   handling, the page parser, and the image-hosting pipeline have each been
   designed and proven on their own, but not yet run against Oakley's live
   catalogue
 - Confirmed the Oakley catalogue is **1,541 products**
 
-Remaining: building out the Oakley scraper against the live site, apparel/footwear
-size variants, colour-name cleanup, finishing Princeton Tec's per-size product
-codes, the full catalogue run, and QA across all 1,541 products. (Crispi and
+Remaining: building out the Oakley scraper against the live site. (Crispi and
 Oakley clothing/footwear don't publish a separate code per size - see question 7.)
 
 ---
@@ -96,19 +90,6 @@ scope of the project.
 | | **All phases** | **$2,000** |
 
 Phase 1 lands first so you can see the import working before committing to 2–3.
-
-### Payment
-
-Work is already underway - the framework, Princeton Tec, and Crispi are built -
-and the Oakley approach is fully planned and ready to begin. Nothing due
-upfront; payment follows delivered work:
-
-| | AUD |
-|--|-----|
-| Princeton Tec + Crispi delivered | $900 |
-| Oakley SI + final delivery | $1,100 (+ ~$75 access cost) |
-
-One revision round per brand is included.
 
 ---
 
