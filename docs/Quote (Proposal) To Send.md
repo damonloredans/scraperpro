@@ -74,8 +74,8 @@ of images to re-host, and QA across the whole catalogue.
 
 ## Price (AUD)
 
-**Fixed: $2,000** for all three brands as scoped, plus a small pass-through
-cost (~$75) for a service needed to access the Oakley site, billed at cost.
+**Fixed: $2,000** for all three brands as scoped, which includes a small pass-through
+cost (~$75) for a service needed to access the Oakley site.
 
 Open to negotiating this, lower or higher, depending on how you see the
 scope of the project.
