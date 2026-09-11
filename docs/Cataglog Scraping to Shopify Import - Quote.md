@@ -21,7 +21,7 @@ variant, SKU, barcode, weight, and images. Delivered as **draft** products in
 **two formats** - the Matrixify layout your sample uses, and a native Shopify CSV
 for the built-in importer - so your team can use whichever suits.
 
-Product images are **re-hosted** so they import cleanly - Oakley's CDN serves a
+Product images are **re-hosted** so they import cleanly - Oakley's media host serves a 
 format Shopify rejects, so the images can't be imported straight from oakleysi.com.
 See question 6 for how you'd like them hosted.
 
@@ -35,16 +35,16 @@ description formatting.
 
 A working codebase is already in place, not starting from zero:
 
-- **Framework + Princeton Tec + Crispi** - scrapers working, products import cleanly
+- **Framework + Princeton Tec + Crispi** - dev scrapers working, products import cleanly
 - **Oakley SI** - product discovery, bot-protection handling, the page parser, and
   the image-hosting pipeline are all **built and proven against a live Shopify
   import**
 - Confirmed the Oakley catalogue is **1,541 products**
 
-Remaining: Oakley apparel/footwear size variants, category and colour-name
-cleanup, finishing Princeton Tec's per-size product codes, the full catalogue
-run, and QA across all 1,541 products. (Crispi and Oakley clothing/footwear
-don't publish a separate code per size - see question 7.)
+Remaining: Oakley apparel/footwear size variants, colour-name cleanup,
+finishing Princeton Tec's per-size product codes, the full catalogue run, and
+QA across all 1,541 products. (Crispi and Oakley clothing/footwear don't
+publish a separate code per size - see question 7.)
 
 ---
 
