@@ -70,8 +70,7 @@ The three brands are not the same amount of work:
 
 Princeton Tec and Crispi are a few days' work. Oakley is a catalogue-scale build:
 over 1,500 pages to read and parse, access protection to work through, thousands
-of images to re-host, and QA across the whole catalogue - which is the single
-biggest task, because at that volume you can't just eyeball it.
+of images to re-host, and QA across the whole catalogue.
 
 ## Price (AUD)
 
